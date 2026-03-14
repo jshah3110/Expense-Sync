@@ -1,0 +1,432 @@
+:root {
+  /* Premium Dark Theme - HSL for smoother blending */
+  --bg-main: hsl(240, 10%, 4%);
+  --bg-card: hsla(240, 10%, 10%, 0.4);
+  --bg-card-hover: hsla(240, 10%, 15%, 0.6);
+  
+  --primary: hsl(250, 89%, 65%);
+  --primary-glow: hsla(250, 89%, 65%, 0.3);
+  --secondary: hsl(330, 81%, 60%);
+  --accent: hsl(190, 90%, 50%);
+  
+  --text-primary: hsl(0, 0%, 98%);
+  --text-secondary: hsl(240, 5%, 65%);
+  --text-muted: hsl(240, 5%, 45%);
+  
+  --border-light: hsla(0, 0%, 100%, 0.08);
+  --border-focus: hsla(250, 89%, 65%, 0.4);
+  
+  --splitwise: #FF5216;
+  --splitwise-glow: rgba(255, 82, 22, 0.4);
+
+  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  
+  --transition-smooth: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-main);
+  background-image: 
+    radial-gradient(circle at 10% 10%, hsla(250, 89%, 65%, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, hsla(330, 81%, 60%, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, hsla(190, 90%, 50%, 0.02) 0%, transparent 60%);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .nav-brand {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Layout */
+.app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+/* Nav */
+.nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rem;
+  padding: 1.5rem 2rem;
+  background: hsla(0, 0%, 100%, 0.02);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.nav-brand {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(to right, #fff, var(--text-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: var(--transition-smooth);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: hsla(0, 0%, 100%, 0.05);
+}
+
+.nav-link.active {
+  color: var(--primary);
+  background: hsla(250, 89%, 65%, 0.1);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: 
+    0 4px 6px hsla(0, 0%, 0%, 0.1),
+    0 10px 20px hsla(0, 0%, 0%, 0.1);
+  transition: var(--transition-smooth);
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover);
+  border-color: hsla(0, 0%, 100%, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 
+    0 10px 40px hsla(0, 0%, 0%, 0.3),
+    0 0 0 1px hsla(0, 0%, 100%, 0.05);
+}
+
+/* Form Elements */
+.glass-input, .glass-select {
+  background: hsla(0, 0%, 0%, 0.2);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: var(--transition-smooth);
+  width: 100%;
+  outline: none;
+}
+
+.glass-input:focus, .glass-select:focus {
+  background: hsla(0, 0%, 0%, 0.4);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+.glass-select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='Length19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.8rem 1.75rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--border-light);
+  background: hsla(0, 0%, 100%, 0.05);
+  color: var(--text-primary);
+}
+
+.btn:hover {
+  transform: scale(1.02);
+  background: hsla(0, 0%, 100%, 0.1);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: transparent;
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background: hsl(250, 89%, 70%);
+  box-shadow: 0 8px 25px var(--primary-glow);
+}
+
+.btn-splitwise {
+  background: var(--splitwise);
+  border-color: transparent;
+  box-shadow: 0 4px 15px var(--splitwise-glow);
+}
+
+.btn-splitwise:hover {
+  background: #ff6a33;
+  box-shadow: 0 10px 25px var(--splitwise-glow);
+}
+
+/* Transaction List Overhaul */
+.transaction-list {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.transaction-item {
+  padding: 1.5rem;
+  background: hsla(0, 0%, 100%, 0.02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  transition: var(--transition-smooth);
+}
+
+.transaction-item:hover {
+  background: hsla(0, 0%, 100%, 0.04);
+  border-color: hsla(0, 0%, 100%, 0.15);
+}
+
+.transaction-item.expanded {
+  background: hsla(0, 0%, 100%, 0.03);
+  border-color: var(--primary-glow);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.tx-header:hover {
+  background: hsla(0, 0%, 100%, 0.05) !important;
+}
+
+.tx-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.tx-name {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.tx-date {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.tx-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: hsla(0, 0%, 100%, 0.05);
+  border: 1px solid var(--border-light);
+}
+
+/* Responsive Grid for Tx fields */
+.tx-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.field-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: hsla(0, 0%, 100%, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsla(0, 0%, 100%, 0.2);
+}
+
+/* ==========================================
+   MOBILE RESPONSIVE - iPhone 13 Pro + (390px)
+   ========================================== */
+
+@media (max-width: 640px) {
+  /* Tighten main container */
+  .app-container {
+    padding: 1rem 0.75rem;
+  }
+
+  /* Nav: stack vertically on mobile */
+  .nav-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.75rem;
+    text-align: center;
+  }
+
+  .nav-brand {
+    font-size: 1.3rem;
+    justify-content: center;
+  }
+
+  .nav-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .nav-link {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  /* Transaction header controls: stack vertically */
+  .tx-controls-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .tx-controls-row > div,
+  .tx-controls-row > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tx header row: tighter on mobile */
+  .tx-header {
+    padding: 1rem !important;
+  }
+
+  /* Amount and chevron: shrink */
+  .tx-amount { font-size: 1rem !important; }
+  .tx-name { font-size: 0.95rem !important; }
+
+  /* Fields grid: single column on very small screens */
+  .tx-fields-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem;
+  }
+
+  /* Glass cards: reduce padding */
+  .glass-card {
+    border-radius: var(--radius-lg);
+  }
+
+  /* Buttons: full width on mobile forms */
+  .mobile-full {
+    width: 100%;
+  }
+
+  /* Member labels: wrap nicely */
+  .member-label {
+    flex: 0 0 auto;
+  }
+
+  /* Push button row: stack on mobile */
+  .push-btn-row {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .push-btn-row > button {
+    width: 100%;
+  }
+
+  /* Inputs: ensure minimum touch target (44px) */
+  .glass-input,
+  .glass-select,
+  .btn {
+    min-height: 44px;
+  }
+
+  /* Reduce font size slightly for tx content area */
+  .tx-content {
+    padding: 0 1rem 1rem !important;
+  }
+
+  /* Page headings */
+  h2 { font-size: 1.5rem !important; }
+
+  /* Settings cards */
+  .glass-card > div:first-child {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+/* Animate-fade-in for Settings */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}

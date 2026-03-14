@@ -1,0 +1,50 @@
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
+import datetime
+import os
+
+DATABASE_URL = "sqlite:///./expenses.db"
+
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plaid_transaction_id = Column(String, unique=True, index=True)
+    account_id = Column(String, index=True)
+    amount = Column(Float)
+    date = Column(String) # YYYY-MM-DD
+    name = Column(String) # Merchant Name
+    merchant_name = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    
+    # App State
+    is_synced = Column(Boolean, default=False)
+    splitwise_expense_id = Column(String, nullable=True)
+    splitwise_group_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class UserModel(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    plaid_access_token = Column(String, nullable=True)
+    splitwise_access_token = Column(String, nullable=True)
+    # Note: For a real production app, these tokens should be encrypted in the DB.
+    # For a local MVP, we will store them as plaintext for simplicity.
+
+# Create all tables
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
