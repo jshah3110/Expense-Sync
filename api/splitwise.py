@@ -34,10 +34,15 @@ def connect_splitwise():
 
 @router.get("/status")
 def check_status(db: Session = Depends(get_db)):
-    """Checks if Splitwise is connected (token exists)."""
+    """Checks if Splitwise is connected (token exists in DB or env var)."""
     user = db.query(UserModel).filter(UserModel.id == 1).first()
-    connected = user is not None and user.splitwise_access_token is not None
-    return {"connected": connected}
+    token = (user.splitwise_access_token if user else None) or os.getenv("SPLITWISE_ACCESS_TOKEN")
+    return {"connected": token is not None}
+
+def get_splitwise_token(db: Session) -> str | None:
+    """Get Splitwise token from DB, falling back to env var (for Render ephemeral filesystem)."""
+    user = db.query(UserModel).filter(UserModel.id == 1).first()
+    return (user.splitwise_access_token if user else None) or os.getenv("SPLITWISE_ACCESS_TOKEN")
 
 @router.get("/callback")
 def splitwise_callback(code: str, db: Session = Depends(get_db)):
@@ -73,11 +78,11 @@ def splitwise_callback(code: str, db: Session = Depends(get_db)):
 @router.get("/groups")
 def get_groups(db: Session = Depends(get_db)):
     """Fetches the user's Splitwise groups."""
-    user = db.query(UserModel).filter(UserModel.id == 1).first()
-    if not user or not user.splitwise_access_token:
+    token = get_splitwise_token(db)
+    if not token:
         raise HTTPException(status_code=401, detail="Splitwise not connected")
         
-    headers = {"Authorization": f"Bearer {user.splitwise_access_token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{API_BASE}/get_groups", headers=headers)
     
     if response.status_code != 200:
@@ -88,11 +93,11 @@ def get_groups(db: Session = Depends(get_db)):
 @router.get("/current_user")
 def get_current_user(db: Session = Depends(get_db)):
     """Fetches the current Splitwise user's profile."""
-    user = db.query(UserModel).filter(UserModel.id == 1).first()
-    if not user or not user.splitwise_access_token:
+    token = get_splitwise_token(db)
+    if not token:
         raise HTTPException(status_code=401, detail="Splitwise not connected")
         
-    headers = {"Authorization": f"Bearer {user.splitwise_access_token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{API_BASE}/get_current_user", headers=headers)
     
     if response.status_code != 200:
@@ -103,12 +108,12 @@ def get_current_user(db: Session = Depends(get_db)):
 @router.post("/expense")
 def add_expense(expense_data: dict, db: Session = Depends(get_db)):
     """Creates a new expense in Splitwise."""
-    user = db.query(UserModel).filter(UserModel.id == 1).first()
-    if not user or not user.splitwise_access_token:
-        # Mock successful push for testing
+    token = get_splitwise_token(db)
+    if not token:
+        # Mock successful push for testing when not connected
         return {"expenses": [{"id": "mock_expense_123", "cost": expense_data.get("cost"), "description": expense_data.get("description")}]}
         
-    headers = {"Authorization": f"Bearer {user.splitwise_access_token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     
     # Basic mapping, this would need to adhere to Splitwise's complex payload structure
     # https://dev.splitwise.com/#tag/expenses/paths/~1get_expenses/get
