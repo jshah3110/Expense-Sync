@@ -9,3 +9,4 @@ scikit-learn
 pandas
 numpy
 certifi
+psycopg2-binary

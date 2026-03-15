@@ -3,11 +3,15 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 import datetime
 import os
 
-DATABASE_URL = "sqlite:///./expenses.db"
+# Use PostgreSQL (Supabase) in production, SQLite locally
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expenses.db")
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# SQLAlchemy needs psycopg2 for postgres; SQLite needs check_same_thread
+if DATABASE_URL.startswith("postgresql"):
+    engine = create_engine(DATABASE_URL)
+else:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
