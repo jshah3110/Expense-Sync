@@ -143,7 +143,14 @@ def add_expense(expense_data: dict, db: Session = Depends(get_db)):
     print(f"DEBUG: Pushing to Splitwise with payload: {payload}")
     response = requests.post(f"{API_BASE}/create_expense", headers=headers, json=payload)
     
+    result = response.json()
+    print(f"DEBUG: Splitwise response status: {response.status_code}, body: {result}")
+    
+    # Splitwise returns HTTP 200 even on failure - errors appear in response body
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to create expense")
+        raise HTTPException(status_code=400, detail=f"Splitwise API error: {result}")
+    
+    if result.get("errors") and (result["errors"].get("base") or any(result["errors"].values())):
+        raise HTTPException(status_code=400, detail=f"Splitwise rejected expense: {result['errors']}")
         
-    return response.json()
+    return result
