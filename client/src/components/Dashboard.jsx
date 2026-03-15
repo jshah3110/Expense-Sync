@@ -305,57 +305,57 @@ const Dashboard = () => {
 
   return (
     <div className="app-container animate-up">
-      <div className="nav-header">
-        <div className="nav-brand">
+      <div className="nav-header" style={{ marginBottom: '1.5rem', padding: '0.75rem 1.25rem' }}>
+        <div className="nav-brand" style={{ fontSize: '1.2rem' }}>
           <FiActivity style={{ color: 'var(--primary)' }} />
-          Expense Tracker
+          ExpenseTracker
         </div>
         <div className="nav-links">
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
             <span style={{ 
-              width: '8px', 
-              height: '8px', 
+              width: '6px', 
+              height: '6px', 
               borderRadius: '50%', 
               backgroundColor: isConnected ? '#10b981' : '#ef4444',
-              boxShadow: isConnected ? '0 0 8px #10b981' : '0 0 8px #ef4444'
+              boxShadow: isConnected ? '0 0 6px #10b981' : '0 0 6px #ef4444'
             }}></span>
             <span style={{ color: isConnected ? '#10b981' : '#ef4444', fontWeight: '600' }}>
-              {isConnected ? 'Splitwise Connected' : 'Splitwise Disconnected'}
+              {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
       </div>
 
-      <div style={{ marginBottom: '2.5rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Overview</h2>
-          <p className="subtitle" style={{ marginBottom: '1rem' }}>Review and push your latest bank transactions to Splitwise.</p>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
+          <p className="subtitle" style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>Review and push your bank transactions.</p>
         </div>
-        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: '0.5rem', fontSize: '0.9rem' }}>
+        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
             <input 
               type="checkbox" 
               id="activeGroupsOnly" 
               className="glass-checkbox"
               checked={showActiveOnly}
               onChange={(e) => setShowActiveOnly(e.target.checked)}
-              style={{ cursor: 'pointer', width: '1.2rem', height: '1.2rem' }}
+              style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
             />
             <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
           </div>
-          <button className="btn" onClick={() => setShowMockForm(!showMockForm)}>
-            {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Add Manually'}
+          <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
+            {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
           </button>
-          <button className="btn btn-primary" onClick={handleSyncBank} disabled={isSyncing}>
+          <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
             <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
-            {isSyncing ? 'Pulling...' : 'Sync Bank'}
+            {isSyncing ? 'Syncing...' : 'Sync Bank'}
           </button>
         </div>
       </div>
 
       {showMockForm && (
-        <div className="glass-card animate-up" style={{ marginBottom: '3rem', padding: '2rem' }}>
-          <h3 style={{ marginBottom: '1.5rem', fontSize: '1.1rem' }}>New Manual Transaction</h3>
+        <div className="glass-card animate-up" style={{ marginBottom: '2rem', padding: '1.25rem' }}>
+          <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Manual Transaction</h3>
           <form onSubmit={handleAddManual}>
             <div className="tx-fields-grid">
               <div>
@@ -599,12 +599,12 @@ const Dashboard = () => {
               const group = groups.find(g => g.id.toString() === (tx.selectedGroupId || "").toString());
               
               return (
-                <div key={tx.id} className={`transaction-item glass-card animate-up stagger-${(idx % 3) + 1} ${isExpanded ? 'expanded' : ''}`} style={{ padding: 0, overflow: 'hidden' }}>
-                  <div 
+                <div key={tx.id} className={`transaction-item glass-card animate-up stagger-${(idx % 3) + 1} ${isExpanded ? 'expanded' : ''}`} style={{ padding: 0, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                    <div 
                     className="tx-header" 
                     onClick={() => toggleExpand(tx.id)}
                     style={{ 
-                      padding: '1.25rem 1.5rem', 
+                      padding: '0.75rem 1rem', 
                       cursor: 'pointer', 
                       display: 'flex', 
                       justifyContent: 'space-between', 
@@ -618,17 +618,17 @@ const Dashboard = () => {
                         width: '42px', height: '42px', borderRadius: '12px', background: 'hsla(0,0%,100%,0.05)', 
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'
                       }}>
-                        {tx.category?.toLowerCase() === 'food' ? '🍕' : tx.category?.toLowerCase() === 'transport' ? '🚗' : '📦'}
+                        {tx.category?.toLowerCase() === 'food' ? '🍔' : tx.category?.toLowerCase() === 'transport' ? '🚙' : '🛒'}
                       </div>
                       <div>
-                        <div className="tx-name" style={{ fontSize: '1.1rem', fontWeight: '600' }}>{tx.name || tx.category || "General"}</div>
-                        <div className="tx-date" style={{ fontSize: '0.8rem', opacity: 0.6 }}>{tx.date}</div>
+                        <div className="tx-name" style={{ fontSize: '1rem', fontWeight: '600' }}>{tx.name || tx.category || "General"}</div>
+                        <div className="tx-date" style={{ fontSize: '0.75rem', opacity: 0.6 }}>{tx.date}</div>
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: tx.is_synced ? 'hsl(150, 60%, 50%)' : 'var(--primary)' }}>${tx.amount.toFixed(2)}</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: '700', color: tx.is_synced ? 'hsl(150, 60%, 50%)' : 'var(--primary)' }}>${tx.amount.toFixed(2)}</div>
                         {tx.is_synced ? (
                           <div style={{ fontSize: '0.7rem', color: 'hsl(150, 60%, 50%)', fontWeight: 700, letterSpacing: '0.05em' }}>✅ SYNCED</div>
                         ) : (
@@ -661,7 +661,7 @@ const Dashboard = () => {
                           transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', 
                           transition: 'var(--transition-smooth)',
                           opacity: 0.5,
-                          fontSize: '1.2rem'
+                          fontSize: '1rem'
                         }} />
                       </div>
                     </div>
@@ -822,21 +822,21 @@ const Dashboard = () => {
                           </div>
                         )}
 
-                        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
                            <button 
                             className="btn" 
-                            style={{ background: 'transparent' }}
+                            style={{ background: 'transparent', padding: '0.6rem 1rem' }}
                             onClick={() => toggleExpand(tx.id)}
                           >
                             Close
                           </button>
                           <button 
                             className="btn btn-splitwise" 
-                            style={{ height: '48px', padding: '0 2.5rem', fontSize: '1.05rem' }} 
+                            style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
                             onClick={() => handlePushToSplitwise(tx.id, tx)}
                             disabled={!tx.selectedGroupId}
                           >
-                            <FiArrowRight /> Push to Splitwise
+                            <FiArrowRight /> Push
                           </button>
                         </div>
                       </div>
