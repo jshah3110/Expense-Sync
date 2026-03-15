@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [groups, setGroups] = useState([]);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [showMockForm, setShowMockForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('backlog'); // 'backlog' | 'pushed'
   const [mockForm, setMockForm] = useState({ 
     name: '', 
     amount: '', 
@@ -263,9 +264,21 @@ const Dashboard = () => {
         }
       }
       
-      await axios.post(`${API_BASE}/api/splitwise/expense`, payload);
-      setTransactions(prev => prev.filter(t => t.id !== id));
-      alert("Successfully pushed to Splitwise!");
+      const result = await axios.post(`${API_BASE}/api/splitwise/expense`, payload);
+      
+      // Mark as synced in the DB
+      const splitwiseId = result.data?.expenses?.[0]?.id?.toString() || null;
+      await axios.patch(`${API_BASE}/api/transactions/${id}/mark_synced`, {
+        splitwise_expense_id: splitwiseId,
+        group_id: tx.selectedGroupId
+      });
+      
+      // Update local state — mark synced instead of removing
+      setTransactions(prev => prev.map(t => 
+        t.id === id ? { ...t, is_synced: true, splitwise_expense_id: splitwiseId } : t
+      ));
+      setExpandedTxIds(prev => prev.filter(i => i !== id));
+      setActiveTab('pushed');
       
     } catch (error) {
       console.error("Error pushing to Splitwise", error);
@@ -535,7 +548,40 @@ const Dashboard = () => {
       )}
 
       <div className="animate-up stagger-1">
-        {transactions.length === 0 ? (
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {['backlog', 'pushed'].map(tab => {
+            const count = tab === 'backlog'
+              ? transactions.filter(t => !t.is_synced).length
+              : transactions.filter(t => t.is_synced).length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  borderRadius: '999px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: activeTab === tab
+                    ? tab === 'pushed' ? 'hsla(150, 60%, 40%, 0.3)' : 'var(--primary)'
+                    : 'hsla(0,0%,100%,0.05)',
+                  borderColor: activeTab === tab
+                    ? tab === 'pushed' ? 'hsla(150, 60%, 50%, 0.5)' : 'transparent'
+                    : 'var(--border-light)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {tab === 'backlog' ? '⏳ Backlog' : '✅ Pushed'} <span style={{ opacity: 0.7, marginLeft: '0.3rem' }}>({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {transactions.filter(t => activeTab === 'backlog' ? !t.is_synced : t.is_synced).length === 0 ? (
           <div className="glass-card" style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
             <div style={{ 
               width: '80px', height: '80px', borderRadius: '50%', background: 'hsla(250, 89%, 65%, 0.1)', 
@@ -548,7 +594,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="transaction-list">
-            {transactions.map((tx, idx) => {
+            {transactions.filter(t => activeTab === 'backlog' ? !t.is_synced : t.is_synced).map((tx, idx) => {
               const isExpanded = expandedTxIds.includes(tx.id);
               const group = groups.find(g => g.id.toString() === (tx.selectedGroupId || "").toString());
               
@@ -582,10 +628,14 @@ const Dashboard = () => {
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--primary)' }}>${tx.amount.toFixed(2)}</div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          {tx.plaid_transaction_id?.startsWith('mock') ? 'Mock' : 'Plaid'}
-                        </div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: tx.is_synced ? 'hsl(150, 60%, 50%)' : 'var(--primary)' }}>${tx.amount.toFixed(2)}</div>
+                        {tx.is_synced ? (
+                          <div style={{ fontSize: '0.7rem', color: 'hsl(150, 60%, 50%)', fontWeight: 700, letterSpacing: '0.05em' }}>✅ SYNCED</div>
+                        ) : (
+                          <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {tx.plaid_transaction_id?.startsWith('mock') ? 'Mock' : 'Plaid'}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <button 

@@ -197,6 +197,19 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
+@router.patch("/{tx_id}/mark_synced")
+def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db)):
+    """Mark a transaction as pushed to Splitwise."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    tx.is_synced = True
+    tx.splitwise_expense_id = data.get("splitwise_expense_id")
+    tx.splitwise_group_id = str(data.get("group_id", ""))
+    db.commit()
+    return {"status": "success"}
+
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
     """Check if Plaid is connected (token exists)"""
