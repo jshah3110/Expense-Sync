@@ -115,33 +115,32 @@ def add_expense(expense_data: dict, db: Session = Depends(get_db)):
         
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Basic mapping, this would need to adhere to Splitwise's complex payload structure
-    # https://dev.splitwise.com/#tag/expenses/paths/~1get_expenses/get
+    # Splitwise create_expense uses form-encoded data with flat user keys
+    # e.g. users__0__user_id, users__0__paid_share, users__0__owed_share
     payload = {
-        "cost": expense_data.get("cost"),
-        "description": expense_data.get("description"),
+        "cost": str(expense_data.get("cost", "0")),
+        "description": expense_data.get("description", ""),
         "group_id": expense_data.get("group_id"),
-        "currency_code": "USD" # Default to USD for now
+        "currency_code": "USD",
     }
     
     # Add optional date if provided
     if "date" in expense_data:
         payload["date"] = expense_data["date"]
     
-    # If the user provides an explicit 'users' list (for custom/share splits)
-    if "users" in expense_data:
-        payload["users"] = expense_data["users"]
+    # Convert users array to Splitwise's flat form format
+    users = expense_data.get("users", [])
+    if users:
+        for i, user in enumerate(users):
+            payload[f"users__{i}__user_id"] = user.get("user_id")
+            payload[f"users__{i}__paid_share"] = str(user.get("paid_share", "0.00"))
+            payload[f"users__{i}__owed_share"] = str(user.get("owed_share", "0.00"))
     else:
-        # Fallback to simple logic if 'users' not provided
-        payload["split_equally"] = expense_data.get("split_equally", True)
-        # If a specific payer is provided but using split_equally
-        if "payer_id" in expense_data:
-            # We'd normally need to calculate shares even for simple payer override in JSON API
-            # For simplicity, we'll let the frontend handle building the 'users' array for most cases
-            pass
+        payload["split_equally"] = "true"
 
     print(f"DEBUG: Pushing to Splitwise with payload: {payload}")
-    response = requests.post(f"{API_BASE}/create_expense", headers=headers, json=payload)
+    # Use data= (form-encoded) not json= — Splitwise requires form encoding for users
+    response = requests.post(f"{API_BASE}/create_expense", headers=headers, data=payload)
     
     result = response.json()
     print(f"DEBUG: Splitwise response status: {response.status_code}, body: {result}")
@@ -154,3 +153,4 @@ def add_expense(expense_data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Splitwise rejected expense: {result['errors']}")
         
     return result
+
