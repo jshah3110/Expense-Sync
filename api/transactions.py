@@ -119,11 +119,16 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
     
     import datetime
     cutoff_date = None
-    if days != 'all':
+    force_reset = False
+    
+    if days == 'all':
+        force_reset = True
+    else:
         try:
             cutoff_date = (datetime.datetime.now() - datetime.timedelta(days=int(days))).strftime("%Y-%m-%d")
         except ValueError:
             pass
+            
     user = db.query(UserModel).filter(UserModel.id == 1).first()
     
     # Fallback auto-bridging for edge testing
@@ -187,6 +192,10 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
     
     for conn in connections:
         try:
+            if force_reset:
+                conn.sync_cursor = None
+                db.commit()
+                
             sync_cursor = getattr(conn, "sync_cursor", None) or ""
             has_more = True
             
