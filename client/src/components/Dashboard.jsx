@@ -356,8 +356,15 @@ const Dashboard = () => {
       if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     }
+    }
     return 0;
   });
+
+  const totalPages = Math.ceil(displayedTransactions.length / itemsPerPage);
+  const paginatedTransactions = displayedTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   if (loading) {
     return <div style={{ textAlign: 'center', marginTop: '4rem' }}><FiRefreshCw className="spin" size={32} /></div>;
@@ -1059,7 +1066,32 @@ const Dashboard = () => {
                 </div>
               );
             })}
-          </div>
+            </div>
+            
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem', marginBottom: '1rem' }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  Previous
+                </button>
+                <span style={{ fontSize: '0.85rem', opacity: 0.7, fontWeight: 500 }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button 
+                  className="btn" 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
