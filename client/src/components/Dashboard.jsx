@@ -12,6 +12,33 @@ const Dashboard = () => {
   const [selectedTxIds, setSelectedTxIds] = useState([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [datePreset, setDatePreset] = useState('all');
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [merchantFilter, setMerchantFilter] = useState('');
+
+  useEffect(() => {
+    if (datePreset === 'all') {
+      setDateFrom('');
+      setDateTo('');
+    } else if (datePreset === '7days') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      setDateFrom(d.toISOString().split('T')[0]);
+      setDateTo(new Date().toISOString().split('T')[0]);
+    } else if (datePreset === '30days') {
+      const d = new Date(); d.setDate(d.getDate() - 30);
+      setDateFrom(d.toISOString().split('T')[0]);
+      setDateTo(new Date().toISOString().split('T')[0]);
+    } else if (datePreset === 'thisMonth') {
+      const today = new Date();
+      setDateFrom(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
+      setDateTo(new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]);
+    } else if (datePreset === 'lastMonth') {
+      const today = new Date();
+      setDateFrom(new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0]);
+      setDateTo(new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0]);
+    }
+  }, [datePreset]);
 
   const toggleExpand = (id) => {
     setExpandedTxIds(prev => 
@@ -309,8 +336,23 @@ const Dashboard = () => {
     const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
     if (dateFrom && txDate < dateFrom) return false;
     if (dateTo && txDate > dateTo) return false;
+
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    if (merchantFilter && !(t.name || t.category || "General").toLowerCase().includes(merchantFilter.toLowerCase())) return false;
     
     return true;
+  }).sort((a, b) => {
+    if (sortConfig.key === 'amount') {
+      return sortConfig.direction === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+    }
+    if (sortConfig.key === 'date') {
+      const dateA = a.displayDate || a.date;
+      const dateB = b.displayDate || b.date;
+      if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    }
+    return 0;
   });
 
   if (loading) {
@@ -345,37 +387,88 @@ const Dashboard = () => {
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
           <p className="subtitle" style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>Review and push your bank transactions.</p>
         </div>
-        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>From</span>
-              <input type="date" className="glass-input" style={{ padding: '0.2rem 0.5rem', minHeight: 'unset', colorScheme: 'dark' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>To</span>
-              <input type="date" className="glass-input" style={{ padding: '0.2rem 0.5rem', minHeight: 'unset', colorScheme: 'dark' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
+        {/* Advanced Filters Bar */}
+        <div className="glass-card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', background: 'hsla(0,0%,100%,0.02)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Timeframe</label>
+            <select className="glass-select" value={datePreset} onChange={(e) => setDatePreset(e.target.value)} style={{ minWidth: '140px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
+              <option value="all">All Time</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="custom">Custom Range...</option>
+            </select>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
-              <input 
-                type="checkbox" 
-                id="activeGroupsOnly" 
-                className="glass-checkbox"
-                checked={showActiveOnly}
-                onChange={(e) => setShowActiveOnly(e.target.checked)}
-                style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
-              />
-              <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
+
+          {datePreset === 'custom' && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From</label>
+                <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To</label>
+                <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              </div>
             </div>
-            <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
-              {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
-            </button>
-            <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
-              <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
-              {isSyncing ? 'Syncing...' : 'Sync Bank'}
-            </button>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</label>
+            <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ minWidth: '140px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
+              <option value="all">All Categories</option>
+              {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sort By</label>
+            <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`} onChange={(e) => {
+              const [key, direction] = e.target.value.split('-');
+              setSortConfig({ key, direction });
+            }} style={{ minWidth: '160px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+              <option value="amount-desc">Amount (Highest First)</option>
+              <option value="amount-asc">Amount (Lowest First)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flexGrow: 1, minWidth: '150px' }}>
+            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Merchant Search</label>
+            <input 
+              type="text" 
+              className="glass-input" 
+              placeholder="e.g. Starbucks, Uber..." 
+              value={merchantFilter} 
+              onChange={(e) => setMerchantFilter(e.target.value)} 
+              style={{ padding: '0.5rem 0.8rem', fontSize: '0.85rem', minHeight: 'unset' }}
+            />
+          </div>
+        </div>
+
+        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
+            <input 
+              type="checkbox" 
+              id="activeGroupsOnly" 
+              className="glass-checkbox"
+              checked={showActiveOnly}
+              onChange={(e) => setShowActiveOnly(e.target.checked)}
+              style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
+            />
+            <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
+          </div>
+          <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
+            {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
+          </button>
+          <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
+            <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
+            {isSyncing ? 'Syncing...' : 'Sync Bank'}
+          </button>
         </div>
       </div>
 
