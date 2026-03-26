@@ -12,6 +12,8 @@ from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
+from plaid.model.item_get_request import ItemGetRequest
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 
 from db.database import get_db, UserModel, Transaction
 
@@ -139,6 +141,7 @@ def sync_transactions(db: Session = Depends(get_db)):
                     date=mapped['date'],
                     name=mapped['name'],
                     category=mapped['category'],
+                    bank_name="Mock Bank",
                     is_synced=False
                 )
                 db.add(new_tx)
@@ -148,6 +151,13 @@ def sync_transactions(db: Session = Depends(get_db)):
         return {"status": "success", "added": added_count}
 
     try:
+        # Get Institution Name for Bank Label
+        item_response = client.item_get(ItemGetRequest(access_token=user.plaid_access_token))
+        institution_id = item_response['item']['institution_id']
+        inst_req = InstitutionsGetByIdRequest(institution_id=institution_id, country_codes=[CountryCode('US')])
+        inst_response = client.institutions_get_by_id(inst_req)
+        bank_name = inst_response['institution']['name']
+
         # In a real app we would track the cursor
         cursor = "" 
         
@@ -173,6 +183,7 @@ def sync_transactions(db: Session = Depends(get_db)):
                     date=mapped['date'],
                     name=mapped['name'],
                     category=mapped['category'],
+                    bank_name=bank_name,
                     is_synced=False
                 )
                 db.add(new_tx)
@@ -195,6 +206,7 @@ def add_manual_mock_transaction(request: MockTransactionRequest, db: Session = D
         date=request.date or datetime.datetime.now().strftime("%Y-%m-%d"),
         name=request.name,
         category=request.category,
+        bank_name="Manual Entry",
         is_synced=False
     )
     db.add(new_tx)

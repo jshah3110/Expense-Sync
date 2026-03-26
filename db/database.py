@@ -27,6 +27,7 @@ class Transaction(Base):
     name = Column(String) # Merchant Name
     merchant_name = Column(String, nullable=True)
     category = Column(String, nullable=True)
+    bank_name = Column(String, nullable=True)
     
     # App State
     is_synced = Column(Boolean, default=False)
@@ -45,6 +46,13 @@ class UserModel(Base):
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
+
+from sqlalchemy import text
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN bank_name VARCHAR"))
+except Exception:
+    pass
 
 def get_db():
     db = SessionLocal()

@@ -622,7 +622,22 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <div className="tx-name" style={{ fontSize: '1rem', fontWeight: '600' }}>{tx.name || tx.category || "General"}</div>
-                        <div className="tx-date" style={{ fontSize: '0.75rem', opacity: 0.6 }}>{tx.date}</div>
+                        <div className="tx-date" style={{ fontSize: '0.75rem', opacity: 0.8, display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.15rem' }}>
+                          <span>{tx.date}</span>
+                          {tx.bank_name && (
+                            <>
+                              <span style={{ opacity: 0.5 }}>•</span>
+                              <span style={{ 
+                                background: 'hsla(0,0%,100%,0.1)', 
+                                padding: '1px 6px', 
+                                borderRadius: '4px', 
+                                fontSize: '0.65rem', 
+                                letterSpacing: '0.02em',
+                                color: 'var(--text-secondary)'
+                              }}>🏦 {tx.bank_name}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
