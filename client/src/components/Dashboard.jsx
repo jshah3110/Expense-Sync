@@ -9,6 +9,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [expandedTxIds, setExpandedTxIds] = useState([]);
+  const [selectedTxIds, setSelectedTxIds] = useState([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const toggleExpand = (id) => {
     setExpandedTxIds(prev => 
@@ -299,6 +302,17 @@ const Dashboard = () => {
     }
   };
 
+  const displayedTransactions = transactions.filter(t => {
+    const isRightTab = activeTab === 'backlog' ? !t.is_synced : t.is_synced;
+    if (!isRightTab) return false;
+    
+    const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
+    if (dateFrom && txDate < dateFrom) return false;
+    if (dateTo && txDate > dateTo) return false;
+    
+    return true;
+  });
+
   if (loading) {
     return <div style={{ textAlign: 'center', marginTop: '4rem' }}><FiRefreshCw className="spin" size={32} /></div>;
   }
@@ -331,25 +345,37 @@ const Dashboard = () => {
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
           <p className="subtitle" style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>Review and push your bank transactions.</p>
         </div>
-        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
-            <input 
-              type="checkbox" 
-              id="activeGroupsOnly" 
-              className="glass-checkbox"
-              checked={showActiveOnly}
-              onChange={(e) => setShowActiveOnly(e.target.checked)}
-              style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
-            />
-            <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
+        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>From</span>
+              <input type="date" className="glass-input" style={{ padding: '0.2rem 0.5rem', minHeight: 'unset', colorScheme: 'dark' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>To</span>
+              <input type="date" className="glass-input" style={{ padding: '0.2rem 0.5rem', minHeight: 'unset', colorScheme: 'dark' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
           </div>
-          <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
-            {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
-          </button>
-          <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
-            <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
-            {isSyncing ? 'Syncing...' : 'Sync Bank'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
+              <input 
+                type="checkbox" 
+                id="activeGroupsOnly" 
+                className="glass-checkbox"
+                checked={showActiveOnly}
+                onChange={(e) => setShowActiveOnly(e.target.checked)}
+                style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
+              />
+              <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
+            </div>
+            <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
+              {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
+            </button>
+            <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
+              <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
+              {isSyncing ? 'Syncing...' : 'Sync Bank'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -551,9 +577,14 @@ const Dashboard = () => {
         {/* Tab switcher */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
           {['backlog', 'pushed'].map(tab => {
-            const count = tab === 'backlog'
-              ? transactions.filter(t => !t.is_synced).length
-              : transactions.filter(t => t.is_synced).length;
+            const count = transactions.filter(t => {
+              const isRightTab = tab === 'backlog' ? !t.is_synced : t.is_synced;
+              if (!isRightTab) return false;
+              const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
+              if (dateFrom && txDate < dateFrom) return false;
+              if (dateTo && txDate > dateTo) return false;
+              return true;
+            }).length;
             return (
               <button
                 key={tab}
@@ -581,7 +612,42 @@ const Dashboard = () => {
           })}
         </div>
 
-        {transactions.filter(t => activeTab === 'backlog' ? !t.is_synced : t.is_synced).length === 0 ? (
+        {displayedTransactions.length > 0 && (
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 0.5rem' }}>
+             <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+               <input 
+                 type="checkbox" 
+                 className="glass-checkbox"
+                 checked={selectedTxIds.length === displayedTransactions.length && displayedTransactions.length > 0}
+                 onChange={(e) => setSelectedTxIds(e.target.checked ? displayedTransactions.map(t => t.id) : [])}
+               />
+               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Select All</span>
+             </label>
+             
+             {selectedTxIds.length > 0 && (
+               <button 
+                 onClick={async () => {
+                   if (!confirm(`Are you sure you want to completely delete ${selectedTxIds.length} synced transactions?`)) return;
+                   try {
+                     await axios.post(`${API_BASE}/api/transactions/bulk_delete`, { tx_ids: selectedTxIds });
+                     setTransactions(prev => prev.filter(t => !selectedTxIds.includes(t.id)));
+                     setSelectedTxIds([]);
+                   } catch(e) { alert("Failed to bulk delete"); }
+                 }}
+                 style={{ 
+                   background: 'hsla(0, 80%, 50%, 0.1)', color: '#ef4444', border: '1px solid #ef4444',
+                   padding: '0.4rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                   display: 'flex', alignItems: 'center'
+                 }}
+               >
+                 <FiTrash2 style={{ marginRight: '0.4rem' }} />
+                 Delete Selected ({selectedTxIds.length})
+               </button>
+             )}
+           </div>
+        )}
+
+        {displayedTransactions.length === 0 ? (
           <div className="glass-card" style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
             <div style={{ 
               width: '80px', height: '80px', borderRadius: '50%', background: 'hsla(250, 89%, 65%, 0.1)', 
@@ -589,12 +655,12 @@ const Dashboard = () => {
             }}>
               <FiActivity size={32} style={{ color: 'var(--primary)', opacity: 0.5 }} />
             </div>
-            <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>All Caught Up!</h3>
-            <p className="subtitle">There are no unsynced transactions to process.</p>
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Transactions</h3>
+            <p className="subtitle">Adjust your date filters or sync your bank to see more.</p>
           </div>
         ) : (
           <div className="transaction-list">
-            {transactions.filter(t => activeTab === 'backlog' ? !t.is_synced : t.is_synced).map((tx, idx) => {
+            {displayedTransactions.map((tx, idx) => {
               const isExpanded = expandedTxIds.includes(tx.id);
               const group = groups.find(g => g.id.toString() === (tx.selectedGroupId || "").toString());
               
@@ -614,6 +680,14 @@ const Dashboard = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="glass-checkbox"
+                          checked={selectedTxIds.includes(tx.id)}
+                          onChange={(e) => setSelectedTxIds(prev => e.target.checked ? [...prev, tx.id] : prev.filter(id => id !== tx.id))}
+                        />
+                      </div>
                       <div style={{ 
                         width: '42px', height: '42px', borderRadius: '12px', background: 'hsla(0,0%,100%,0.05)', 
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'

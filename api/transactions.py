@@ -46,6 +46,9 @@ client = plaid_api.PlaidApi(api_client)
 class LinkTokenRequest(BaseModel):
     redirect_uri: str = None
 
+class BulkDeleteRequest(BaseModel):
+    tx_ids: list[int]
+
 class PublicTokenRequest(BaseModel):
     public_token: str
 
@@ -223,6 +226,13 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
     db.delete(tx)
     db.commit()
     return {"status": "success"}
+
+@router.post("/bulk_delete")
+def bulk_delete_transactions(request: BulkDeleteRequest, db: Session = Depends(get_db)):
+    """Delete multiple transactions simultaneously"""
+    db.query(Transaction).filter(Transaction.id.in_(request.tx_ids)).delete(synchronize_session=False)
+    db.commit()
+    return {"status": "success", "deleted": len(request.tx_ids)}
 
 @router.patch("/{tx_id}/mark_synced")
 def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db)):
