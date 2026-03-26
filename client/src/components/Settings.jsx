@@ -25,8 +25,23 @@ const Settings = () => {
 
   const generateLinkToken = async () => {
     try {
-      const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`);
+      // In OAuth flow, Plaid redirects back to this page with oauth_state_id.
+      // We must not generate a new link token if we are returning from an OAuth redirect.
+      const queryParams = new URLSearchParams(window.location.search);
+      if (queryParams.get('oauth_state_id')) {
+        const savedToken = localStorage.getItem('plaid_link_token');
+        if (savedToken) {
+          setLinkToken(savedToken);
+        }
+        return;
+      }
+
+      const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, {
+        // Strip out query params for the redirect URI
+        redirect_uri: window.location.href.split('?')[0]
+      });
       setLinkToken(res.data.link_token);
+      localStorage.setItem('plaid_link_token', res.data.link_token);
     } catch (e) {
       console.error("Failed to generate link token", e);
     }
@@ -58,10 +73,24 @@ const Settings = () => {
     }
   };
 
+  const onExit = (error, metadata) => {
+    if (error) {
+      console.error("Plaid Exit Error:", error, metadata);
+      alert(`Plaid closed with error: ${error.error_message || error.error_code}`);
+    }
+  };
+
   const { open, ready } = usePlaidLink({
     token: linkToken,
     onSuccess,
+    onExit,
   });
+
+  useEffect(() => {
+    if (ready && window.location.href.includes('?oauth_state_id=')) {
+      open();
+    }
+  }, [ready, open]);
 
   return (
     <div className="animate-fade-in stagger-1">

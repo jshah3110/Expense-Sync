@@ -41,6 +41,9 @@ configuration.ssl_ca_cert = certifi.where()
 api_client = plaid.ApiClient(configuration)
 client = plaid_api.PlaidApi(api_client)
 
+class LinkTokenRequest(BaseModel):
+    redirect_uri: str = None
+
 class PublicTokenRequest(BaseModel):
     public_token: str
 
@@ -51,17 +54,22 @@ class MockTransactionRequest(BaseModel):
     date: str = None
 
 @router.post("/create_link_token")
-def create_link_token():
+def create_link_token(req: LinkTokenRequest = None):
     try:
         # Use a more unique user ID to avoid "Remember Me" friction in sandbox
         unique_user_id = f"user-{datetime.datetime.now().strftime('%M%S')}"
-        request = LinkTokenCreateRequest(
-            products=[Products("transactions")],
-            client_name="Expense Tracker",
-            country_codes=[CountryCode("US")],
-            language="en",
-            user=LinkTokenCreateRequestUser(client_user_id=unique_user_id)
-        )
+        request_params = {
+            "products": [Products("transactions")],
+            "client_name": "Expense Tracker",
+            "country_codes": [CountryCode("US")],
+            "language": "en",
+            "user": LinkTokenCreateRequestUser(client_user_id=unique_user_id)
+        }
+        
+        if req and req.redirect_uri:
+            request_params["redirect_uri"] = req.redirect_uri
+            
+        request = LinkTokenCreateRequest(**request_params)
         response = client.link_token_create(request)
         return {"link_token": response['link_token']}
     except plaid.ApiException as e:
