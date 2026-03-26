@@ -12,7 +12,7 @@ services:
       - key: PLAID_SECRET
         sync: false
       - key: PLAID_ENV
-        value: sandbox
+        sync: false
       - key: SPLITWISE_CLIENT_ID
         sync: false
       - key: SPLITWISE_CLIENT_SECRET
