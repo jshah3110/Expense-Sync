@@ -479,10 +479,23 @@ const Dashboard = () => {
           <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
             {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
           </button>
-          <button className="btn btn-primary" style={{ padding: '0.6rem 1.25rem' }} onClick={handleSyncBank} disabled={isSyncing}>
-            <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
-            {isSyncing ? 'Syncing...' : 'Sync Bank'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--primary)', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px hsla(250, 89%, 65%, 0.2)' }}>
+            <select 
+              value={syncDays} 
+              onChange={(e) => setSyncDays(e.target.value)} 
+              style={{ border: 'none', background: 'rgba(0,0,0,0.15)', color: '#fff', padding: '0.6rem 0.8rem', fontSize: '0.85rem', fontWeight: 500, outline: 'none', appearance: 'menulist' }}
+            >
+              <option value="7" style={{color: '#000'}}>Past 7 Days</option>
+              <option value="30" style={{color: '#000'}}>Past 30 Days</option>
+              <option value="90" style={{color: '#000'}}>Past 90 Days</option>
+              <option value="all" style={{color: '#000'}}>Unlimited History</option>
+            </select>
+            <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(255,255,255,0.2)' }}></div>
+            <button className="btn" style={{ padding: '0.6rem 1.25rem', border: 'none', background: 'transparent', color: '#fff', boxShadow: 'none', borderRadius: 0, margin: 0 }} onClick={handleSyncBank} disabled={isSyncing}>
+              <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          </div>
         </div>
       </div>
 
