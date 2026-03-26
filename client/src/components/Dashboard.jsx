@@ -17,6 +17,9 @@ const Dashboard = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
   const [merchantFilter, setMerchantFilter] = useState('');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (datePreset === 'all') {
@@ -128,6 +131,10 @@ const Dashboard = () => {
     fetchTransactions();
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [datePreset, dateFrom, dateTo, sortConfig, categoryFilter, bankFilter, merchantFilter]);
 
   const [syncDays, setSyncDays] = useState('30');
 
