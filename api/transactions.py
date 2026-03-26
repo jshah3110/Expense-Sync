@@ -210,6 +210,19 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                         db.add(new_tx)
                         all_transactions_added.append(mapped['name'])
                         total_added += 1
+
+                for p_tx in response.get('modified', []):
+                    mapped = normalize_plaid_transaction(p_tx)
+                    existing_tx = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
+                    if existing_tx:
+                        existing_tx.amount = mapped['amount']
+                        existing_tx.name = mapped['name']
+                        existing_tx.category = mapped['category']
+
+                for p_tx in response.get('removed', []):
+                    removed_id = p_tx.get('transaction_id')
+                    if removed_id:
+                        db.query(Transaction).filter(Transaction.plaid_transaction_id == removed_id).delete(synchronize_session=False)
                         
                 sync_cursor = response['next_cursor']
                 has_more = response['has_more']
