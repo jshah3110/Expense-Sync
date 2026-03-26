@@ -113,9 +113,17 @@ def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/sync")
-def sync_transactions(db: Session = Depends(get_db)):
+def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
     """Fetches new transactions concurrently across all registered Plaid items."""
     connections = db.query(BankConnection).all()
+    
+    import datetime
+    cutoff_date = None
+    if days != 'all':
+        try:
+            cutoff_date = (datetime.datetime.now() - datetime.timedelta(days=int(days))).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
     user = db.query(UserModel).filter(UserModel.id == 1).first()
     
     # Fallback auto-bridging for edge testing
@@ -185,6 +193,8 @@ def sync_transactions(db: Session = Depends(get_db)):
                 for p_tx in response['added']:
                     mapped = normalize_plaid_transaction(p_tx)
                     if mapped['amount'] <= 0: continue
+                    if cutoff_date and mapped['date'] < cutoff_date: continue
+                    
                     exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
                     if not exists:
                         new_tx = Transaction(

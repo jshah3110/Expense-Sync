@@ -129,10 +129,12 @@ const Dashboard = () => {
     fetchGroups();
   }, []);
 
+  const [syncDays, setSyncDays] = useState('30');
+
   const handleSyncBank = async () => {
     setIsSyncing(true);
     try {
-      await axios.get(`${API_BASE}/api/transactions/sync`);
+      await axios.get(`${API_BASE}/api/transactions/sync?days=${syncDays}`);
       await fetchTransactions();
     } catch (error) {
        console.error("Error syncing with Plaid", error);
