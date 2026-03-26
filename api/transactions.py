@@ -120,6 +120,7 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
     import datetime
     cutoff_date = None
     force_reset = False
+    errors = []
     
     if days == 'all':
         force_reset = True
@@ -207,43 +208,58 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 )
                 response = client.transactions_sync(request)
                 
-                for p_tx in response['added']:
-                    mapped = normalize_plaid_transaction(p_tx)
-                    if mapped['amount'] <= 0: continue
-                    if cutoff_date and mapped['date'] < cutoff_date: continue
-                    
-                    exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
-                    if not exists:
-                        new_tx = Transaction(
-                            plaid_transaction_id=mapped['plaid_id'],
-                            account_id=mapped['account_id'],
-                            amount=mapped['amount'],
-                            date=mapped['date'],
-                            name=mapped['name'],
-                            category=mapped['category'],
-                            bank_name=conn.institution_name,
-                            logo_url=mapped.get('logo_url'),
-                            is_synced=False
-                        )
-                        db.add(new_tx)
-                        all_transactions_added.append(mapped['name'])
-                        total_added += 1
+                # The Plaid python SDK returns un-iterable class objects. Recursing into pure dicts natively!
+                try:
+                    res_dict = response.to_dict()
+                except AttributeError:
+                    res_dict = response
 
-                for p_tx in response.get('modified', []):
-                    mapped = normalize_plaid_transaction(p_tx)
-                    existing_tx = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
-                    if existing_tx:
-                        existing_tx.amount = mapped['amount']
-                        existing_tx.name = mapped['name']
-                        existing_tx.category = mapped['category']
-
-                for p_tx in response.get('removed', []):
-                    removed_id = p_tx.get('transaction_id')
-                    if removed_id:
-                        db.query(Transaction).filter(Transaction.plaid_transaction_id == removed_id).delete(synchronize_session=False)
+                for p_tx in res_dict.get('added', []):
+                    try:
+                        mapped = normalize_plaid_transaction(p_tx)
+                        if mapped['amount'] <= 0: continue
+                        if cutoff_date and mapped['date'] < cutoff_date: continue
                         
-                sync_cursor = response['next_cursor']
-                has_more = response['has_more']
+                        exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
+                        if not exists:
+                            new_tx = Transaction(
+                                plaid_transaction_id=mapped['plaid_id'],
+                                account_id=mapped['account_id'],
+                                amount=mapped['amount'],
+                                date=mapped['date'],
+                                name=mapped['name'],
+                                category=mapped['category'],
+                                bank_name=conn.institution_name,
+                                logo_url=mapped.get('logo_url'),
+                                is_synced=False
+                            )
+                            db.add(new_tx)
+                            all_transactions_added.append(mapped['name'])
+                            total_added += 1
+                    except Exception as loop_e:
+                        errors.append(f"Parsing skip: {str(loop_e)}")
+
+                for p_tx in res_dict.get('modified', []):
+                    try:
+                        mapped = normalize_plaid_transaction(p_tx)
+                        existing_tx = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
+                        if existing_tx:
+                            existing_tx.amount = mapped['amount']
+                            existing_tx.name = mapped['name']
+                            existing_tx.category = mapped['category']
+                    except Exception:
+                        pass
+
+                for p_tx in res_dict.get('removed', []):
+                    try:
+                        removed_id = p_tx.get('transaction_id')
+                        if removed_id:
+                            db.query(Transaction).filter(Transaction.plaid_transaction_id == removed_id).delete(synchronize_session=False)
+                    except Exception:
+                        pass
+                        
+                sync_cursor = res_dict.get('next_cursor', '')
+                has_more = res_dict.get('has_more', False)
                 
             try:
                 conn.sync_cursor = sync_cursor
@@ -251,10 +267,11 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 pass
                 
         except Exception as e:
+            errors.append(f"Fatal remote hook: {str(e)}")
             print(f"Failed sync for {conn.institution_name}: {e}")
 
     db.commit()
-    return {"status": "success", "added": total_added, "transactions": all_transactions_added}
+    return {"status": "success", "added": total_added, "transactions": all_transactions_added, "errors": errors}
 
 @router.post("/mock")
 def add_manual_mock_transaction(request: MockTransactionRequest, db: Session = Depends(get_db)):
