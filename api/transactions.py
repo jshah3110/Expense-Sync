@@ -22,8 +22,15 @@ PLAID_SECRET = os.getenv('PLAID_SECRET')
 PLAID_ENV = os.getenv('PLAID_ENV', 'sandbox')
 
 # Plaid configuration
+if PLAID_ENV == 'production':
+    host_env = plaid.Environment.Production
+elif PLAID_ENV == 'development':
+    host_env = plaid.Environment.Development
+else:
+    host_env = plaid.Environment.Sandbox
+
 configuration = plaid.Configuration(
-    host=plaid.Environment.Sandbox if PLAID_ENV == 'sandbox' else plaid.Environment.Development,
+    host=host_env,
     api_key={
         'clientId': PLAID_CLIENT_ID,
         'secret': PLAID_SECRET,
