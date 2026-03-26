@@ -28,6 +28,7 @@ class Transaction(Base):
     merchant_name = Column(String, nullable=True)
     category = Column(String, nullable=True)
     bank_name = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)
     
     # App State
     is_synced = Column(Boolean, default=False)
@@ -56,6 +57,12 @@ from sqlalchemy import text
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE transactions ADD COLUMN bank_name VARCHAR"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN logo_url VARCHAR"))
 except Exception:
     pass
 

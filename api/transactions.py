@@ -132,14 +132,21 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
     
     def normalize_plaid_transaction(p_tx):
         display_name = p_tx.get('merchant_name') or p_tx.get('name')
-        category = p_tx.get('category', ['General'])[0] if p_tx.get('category') else "General"
+        
+        pf_cat = p_tx.get('personal_finance_category')
+        if pf_cat and pf_cat.get('primary'):
+            category = pf_cat['primary'].replace('_', ' ').title()
+        else:
+            category = p_tx.get('category', ['General'])[0] if p_tx.get('category') else "General"
+            
         return {
             "plaid_id": p_tx['transaction_id'],
             "account_id": p_tx['account_id'],
             "amount": p_tx['amount'],
             "date": str(p_tx['date']),
             "name": display_name,
-            "category": category
+            "category": category,
+            "logo_url": p_tx.get('logo_url')
         }
 
     if not connections:
@@ -165,6 +172,7 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                     name=mapped['name'],
                     category=mapped['category'],
                     bank_name="Mock Bank",
+                    logo_url=mapped.get('logo_url'),
                     is_synced=False
                 )
                 db.add(new_tx)
@@ -205,6 +213,7 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                             name=mapped['name'],
                             category=mapped['category'],
                             bank_name=conn.institution_name,
+                            logo_url=mapped.get('logo_url'),
                             is_synced=False
                         )
                         db.add(new_tx)
