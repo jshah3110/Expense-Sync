@@ -171,31 +171,44 @@ def sync_transactions(db: Session = Depends(get_db)):
     
     for conn in connections:
         try:
-            request = TransactionsSyncRequest(
-                access_token=conn.access_token,
-                cursor="",
-                count=100
-            )
-            response = client.transactions_sync(request)
+            sync_cursor = getattr(conn, "sync_cursor", None) or ""
+            has_more = True
             
-            for p_tx in response['added']:
-                mapped = normalize_plaid_transaction(p_tx)
-                if mapped['amount'] <= 0: continue
-                exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
-                if not exists:
-                    new_tx = Transaction(
-                        plaid_transaction_id=mapped['plaid_id'],
-                        account_id=mapped['account_id'],
-                        amount=mapped['amount'],
-                        date=mapped['date'],
-                        name=mapped['name'],
-                        category=mapped['category'],
-                        bank_name=conn.institution_name,
-                        is_synced=False
-                    )
-                    db.add(new_tx)
-                    all_transactions_added.append(mapped['name'])
-                    total_added += 1
+            while has_more:
+                request = TransactionsSyncRequest(
+                    access_token=conn.access_token,
+                    cursor=sync_cursor,
+                    count=500
+                )
+                response = client.transactions_sync(request)
+                
+                for p_tx in response['added']:
+                    mapped = normalize_plaid_transaction(p_tx)
+                    if mapped['amount'] <= 0: continue
+                    exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
+                    if not exists:
+                        new_tx = Transaction(
+                            plaid_transaction_id=mapped['plaid_id'],
+                            account_id=mapped['account_id'],
+                            amount=mapped['amount'],
+                            date=mapped['date'],
+                            name=mapped['name'],
+                            category=mapped['category'],
+                            bank_name=conn.institution_name,
+                            is_synced=False
+                        )
+                        db.add(new_tx)
+                        all_transactions_added.append(mapped['name'])
+                        total_added += 1
+                        
+                sync_cursor = response['next_cursor']
+                has_more = response['has_more']
+                
+            try:
+                conn.sync_cursor = sync_cursor
+            except Exception:
+                pass
+                
         except Exception as e:
             print(f"Failed sync for {conn.institution_name}: {e}")
 

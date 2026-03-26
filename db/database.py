@@ -47,6 +47,7 @@ class BankConnection(Base):
     id = Column(Integer, primary_key=True, index=True)
     access_token = Column(String, unique=True, index=True)
     institution_name = Column(String)
+    sync_cursor = Column(String, nullable=True)
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -55,6 +56,12 @@ from sqlalchemy import text
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE transactions ADD COLUMN bank_name VARCHAR"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN sync_cursor VARCHAR"))
 except Exception:
     pass
 
