@@ -15,7 +15,7 @@ from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 
-from db.database import get_db, UserModel, Transaction
+from db.database import get_db, UserModel, Transaction, BankConnection
 
 router = APIRouter()
 
@@ -89,14 +89,24 @@ def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db))
         response = client.item_public_token_exchange(exchange_request)
         access_token = response['access_token']
         
-        # Save token for user
-        user = db.query(UserModel).filter(UserModel.id == 1).first()
-        if not user:
-            user = UserModel(id=1)
-            db.add(user)
+        # Determine institution name safely
+        item_response = client.item_get(ItemGetRequest(access_token=access_token))
+        institution_id = item_response['item']['institution_id']
+        inst_req = InstitutionsGetByIdRequest(institution_id=institution_id, country_codes=[CountryCode('US')])
+        bank_name = client.institutions_get_by_id(inst_req)['institution']['name']
         
-        user.plaid_access_token = access_token
-        db.commit()
+        exists = db.query(BankConnection).filter(BankConnection.access_token == access_token).first()
+        if not exists:
+            conn = BankConnection(access_token=access_token, institution_name=bank_name)
+            db.add(conn)
+            
+            # Legacy fallback bridging
+            user = db.query(UserModel).filter(UserModel.id == 1).first()
+            if not user:
+                user = UserModel(id=1)
+                db.add(user)
+            user.plaid_access_token = access_token
+            db.commit()
         
         return {"status": "success"}
     except plaid.ApiException as e:
@@ -104,13 +114,16 @@ def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db))
 
 @router.get("/sync")
 def sync_transactions(db: Session = Depends(get_db)):
-    """Fetches new transactions from Plaid using transactions_sync endpoint"""
+    """Fetches new transactions concurrently across all registered Plaid items."""
+    connections = db.query(BankConnection).all()
     user = db.query(UserModel).filter(UserModel.id == 1).first()
     
+    # Fallback auto-bridging for edge testing
+    if len(connections) == 0 and user and user.plaid_access_token:
+        connections = [BankConnection(id=0, access_token=user.plaid_access_token, institution_name="Legacy Bank Mapping")]
+    
     def normalize_plaid_transaction(p_tx):
-        # Prefer merchant_name if Plaid provided it, otherwise use 'name'
         display_name = p_tx.get('merchant_name') or p_tx.get('name')
-        # Standardize category (Plaid returns a list, we just want the first item)
         category = p_tx.get('category', ['General'])[0] if p_tx.get('category') else "General"
         return {
             "plaid_id": p_tx['transaction_id'],
@@ -121,7 +134,7 @@ def sync_transactions(db: Session = Depends(get_db)):
             "category": category
         }
 
-    if not user or not user.plaid_access_token:
+    if not connections:
         # RETURN MOCK DATA FOR TESTING
         mock_raw = [
             {"transaction_id": "mock1", "account_id": "acc1", "amount": 24.50, "date": "2026-03-14", "name": "Uber 063015 SF", "merchant_name": "Uber", "category": ["Transport"]},
@@ -133,8 +146,7 @@ def sync_transactions(db: Session = Depends(get_db)):
         added_count = 0
         for raw_tx in mock_raw:
             mapped = normalize_plaid_transaction(raw_tx)
-            if mapped['amount'] <= 0:  # Skip credits/income
-                continue
+            if mapped['amount'] <= 0: continue
             exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
             if not exists:
                 new_tx = Transaction(
@@ -153,50 +165,42 @@ def sync_transactions(db: Session = Depends(get_db)):
         db.commit()
         return {"status": "success", "added": added_count}
 
-    try:
-        # Get Institution Name for Bank Label
-        item_response = client.item_get(ItemGetRequest(access_token=user.plaid_access_token))
-        institution_id = item_response['item']['institution_id']
-        inst_req = InstitutionsGetByIdRequest(institution_id=institution_id, country_codes=[CountryCode('US')])
-        inst_response = client.institutions_get_by_id(inst_req)
-        bank_name = inst_response['institution']['name']
+    # ITERATE REAL BANKS
+    total_added = 0
+    all_transactions_added = []
+    
+    for conn in connections:
+        try:
+            request = TransactionsSyncRequest(
+                access_token=conn.access_token,
+                cursor="",
+                count=100
+            )
+            response = client.transactions_sync(request)
+            
+            for p_tx in response['added']:
+                mapped = normalize_plaid_transaction(p_tx)
+                if mapped['amount'] <= 0: continue
+                exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
+                if not exists:
+                    new_tx = Transaction(
+                        plaid_transaction_id=mapped['plaid_id'],
+                        account_id=mapped['account_id'],
+                        amount=mapped['amount'],
+                        date=mapped['date'],
+                        name=mapped['name'],
+                        category=mapped['category'],
+                        bank_name=conn.institution_name,
+                        is_synced=False
+                    )
+                    db.add(new_tx)
+                    all_transactions_added.append(mapped['name'])
+                    total_added += 1
+        except Exception as e:
+            print(f"Failed sync for {conn.institution_name}: {e}")
 
-        # In a real app we would track the cursor
-        cursor = "" 
-        
-        request = TransactionsSyncRequest(
-            access_token=user.plaid_access_token,
-            cursor=cursor,
-            count=100
-        )
-        response = client.transactions_sync(request)
-        
-        transactions_added = []
-        for p_tx in response['added']:
-            mapped = normalize_plaid_transaction(p_tx)
-            if mapped['amount'] <= 0:  # Skip credits/income (Plaid: positive = debit, negative = credit)
-                continue
-            # Check if exists
-            exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
-            if not exists:
-                new_tx = Transaction(
-                    plaid_transaction_id=mapped['plaid_id'],
-                    account_id=mapped['account_id'],
-                    amount=mapped['amount'],
-                    date=mapped['date'],
-                    name=mapped['name'],
-                    category=mapped['category'],
-                    bank_name=bank_name,
-                    is_synced=False
-                )
-                db.add(new_tx)
-                transactions_added.append(mapped['name'])
-                
-        db.commit()
-        return {"status": "success", "added": len(transactions_added), "transactions": transactions_added}
-
-    except plaid.ApiException as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    return {"status": "success", "added": total_added, "transactions": all_transactions_added}
 
 @router.post("/mock")
 def add_manual_mock_transaction(request: MockTransactionRequest, db: Session = Depends(get_db)):
@@ -249,10 +253,28 @@ def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db
 
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
-    """Check if Plaid is connected (token exists)"""
+    """Check if Plaid is connected and migrate tokens gracefully"""
+    connections = db.query(BankConnection).all()
     user = db.query(UserModel).filter(UserModel.id == 1).first()
-    connected = user is not None and user.plaid_access_token is not None
-    return {"connected": connected}
+    
+    if len(connections) == 0 and user and user.plaid_access_token:
+        # Zero-Friction Migration Array Backfilling!
+        try:
+            item_response = client.item_get(ItemGetRequest(access_token=user.plaid_access_token))
+            institution_id = item_response['item']['institution_id']
+            inst_req = InstitutionsGetByIdRequest(institution_id=institution_id, country_codes=[CountryCode('US')])
+            bank_name = client.institutions_get_by_id(inst_req)['institution']['name']
+            
+            new_conn = BankConnection(access_token=user.plaid_access_token, institution_name=bank_name)
+            db.add(new_conn)
+            db.commit()
+            connections = [new_conn]
+        except Exception:
+            pass
+
+    formatted = [{"id": c.id, "institution_name": c.institution_name} for c in connections]
+    connected = len(connections) > 0
+    return {"connected": connected, "connections": formatted}
 
 @router.get("/")
 def get_recorded_transactions(db: Session = Depends(get_db)):

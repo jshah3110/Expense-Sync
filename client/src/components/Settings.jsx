@@ -8,6 +8,7 @@ import API_BASE from '../config';
 const Settings = () => {
   const [splitwiseConnected, setSplitwiseConnected] = useState(false);
   const [plaidConnected, setPlaidConnected] = useState(false);
+  const [plaidConnections, setPlaidConnections] = useState([]);
   const [linkToken, setLinkToken] = useState(null);
   const location = useLocation();
 
@@ -18,6 +19,7 @@ const Settings = () => {
       
       const plRes = await axios.get(`${API_BASE}/api/transactions/status`);
       setPlaidConnected(plRes.data.connected);
+      setPlaidConnections(plRes.data.connections || []);
     } catch (e) {
       console.error("Status check failed", e);
     }
@@ -66,7 +68,7 @@ const Settings = () => {
       await axios.post(`${API_BASE}/api/transactions/set_access_token`, {
         public_token: public_token
       });
-      setPlaidConnected(true);
+      await fetchStatus();
     } catch (e) {
       console.error("Failed to set access token", e);
       alert("Failed to connect bank.");
@@ -140,7 +142,7 @@ const Settings = () => {
             </div>
             {plaidConnected ? (
               <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '500' }}>
-                <FiCheckCircle /> Connected
+                <FiCheckCircle /> Live
               </span>
             ) : (
               <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -149,16 +151,26 @@ const Settings = () => {
             )}
           </div>
 
-          {!plaidConnected && (
-            <button 
-              className="btn" 
-              onClick={() => open()} 
-              disabled={!ready}
-              style={{ background: '#fff', color: '#111', borderColor: '#fff', opacity: ready ? 1 : 0.5 }}
-            >
-              <FiLink2 /> Connect Bank via Plaid
-            </button>
+          {plaidConnections.length > 0 && (
+            <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {plaidConnections.map(c => (
+                 <div key={c.id} style={{ background: 'hsla(0,0%,100%,0.05)', border: '1px solid hsla(0,0%,100%,0.1)', padding: '0.5rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>🏦</span> 
+                    <span style={{ fontWeight: 600 }}>{c.institution_name}</span>
+                    <FiCheckCircle style={{ color: '#10b981', marginLeft: '0.2rem' }} />
+                 </div>
+              ))}
+            </div>
           )}
+
+          <button 
+            className="btn" 
+            onClick={() => open()} 
+            disabled={!ready}
+            style={{ background: '#fff', color: '#111', borderColor: '#fff', opacity: ready ? 1 : 0.5 }}
+          >
+            <FiLink2 /> {plaidConnected ? 'Connect Another Bank' : 'Connect Bank via Plaid'}
+          </button>
         </div>
       </div>
     </div>

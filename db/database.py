@@ -39,10 +39,14 @@ class UserModel(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    plaid_access_token = Column(String, nullable=True)
+    plaid_access_token = Column(String, nullable=True) # Legacy mapping
     splitwise_access_token = Column(String, nullable=True)
-    # Note: For a real production app, these tokens should be encrypted in the DB.
-    # For a local MVP, we will store them as plaintext for simplicity.
+
+class BankConnection(Base):
+    __tablename__ = "bank_connections"
+    id = Column(Integer, primary_key=True, index=True)
+    access_token = Column(String, unique=True, index=True)
+    institution_name = Column(String)
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
