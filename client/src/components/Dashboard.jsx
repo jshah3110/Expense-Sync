@@ -810,9 +810,14 @@ const Dashboard = () => {
                       </div>
                       <div style={{ 
                         width: '42px', height: '42px', borderRadius: '12px', background: 'hsla(0,0%,100%,0.05)', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
+                        overflow: 'hidden'
                       }}>
-                        {tx.category?.toLowerCase() === 'food' ? '🍔' : tx.category?.toLowerCase() === 'transport' ? '🚙' : '🛒'}
+                        {tx.logo_url ? (
+                           <img src={tx.logo_url} alt={tx.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                           tx.category?.toLowerCase() === 'food' ? '🍔' : tx.category?.toLowerCase() === 'transport' ? '🚙' : '🛒'
+                        )}
                       </div>
                       <div>
                         <div className="tx-name" style={{ fontSize: '1rem', fontWeight: '600' }}>{tx.name || tx.category || "General"}</div>
