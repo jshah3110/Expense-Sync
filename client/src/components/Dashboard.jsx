@@ -356,7 +356,6 @@ const Dashboard = () => {
       if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     }
-    }
     return 0;
   });
 
@@ -786,8 +785,9 @@ const Dashboard = () => {
             <p className="subtitle">Adjust your date filters or sync your bank to see more.</p>
           </div>
         ) : (
-          <div className="transaction-list">
-            {displayedTransactions.map((tx, idx) => {
+          <>
+            <div className="transaction-list">
+              {paginatedTransactions.map((tx, idx) => {
               const isExpanded = expandedTxIds.includes(tx.id);
               const group = groups.find(g => g.id.toString() === (tx.selectedGroupId || "").toString());
               
