@@ -15,6 +15,7 @@ const Dashboard = () => {
   const [datePreset, setDatePreset] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [bankFilter, setBankFilter] = useState('all');
   const [merchantFilter, setMerchantFilter] = useState('');
 
   useEffect(() => {
@@ -338,6 +339,7 @@ const Dashboard = () => {
     if (dateTo && txDate > dateTo) return false;
 
     if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+    if (bankFilter !== 'all' && (t.bank_name || 'Unknown') !== bankFilter) return false;
     if (merchantFilter && !(t.name || t.category || "General").toLowerCase().includes(merchantFilter.toLowerCase())) return false;
     
     return true;
@@ -413,6 +415,16 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bank / Card</label>
+            <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} style={{ minWidth: '130px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
+              <option value="all">All Accounts</option>
+              {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(Boolean))).sort().map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</label>
