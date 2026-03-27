@@ -46,6 +46,7 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS PWA full height */
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -59,6 +60,13 @@ h1, h2, h3, .nav-brand {
   max-width: 800px;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+}
+
+/* PWA safe area: push content below status bar on iOS */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .app-container {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+  }
 }
 
 /* Nav */
@@ -450,22 +458,25 @@ h1, h2, h3, .nav-brand {
   /* Chip scrollbar hide */
   .chip-row::-webkit-scrollbar { display: none; }
 
-  /* Bottom Nav */
+  /* Bottom Nav — respects iPhone home indicator */
   .mobile-nav-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 62px;
-    background: hsla(240, 10%, 5%, 0.95);
+    /* Height adapts to safe area on iPhone */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: hsla(240, 10%, 5%, 0.96);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-top: 1px solid var(--border-light);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 0.25rem;
-    z-index: 1000;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    padding-top: 0.5rem;
+    z-index: 9999;
   }
 
   .mobile-nav-item {
@@ -491,7 +502,10 @@ h1, h2, h3, .nav-brand {
     background: hsla(250, 89%, 65%, 0.12);
   }
 
-  body { padding-bottom: 72px; }
+  /* Body clears bottom nav + home indicator */
+  body {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Animate-fade-in for Settings */

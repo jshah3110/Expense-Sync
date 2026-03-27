@@ -460,34 +460,8 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="app-container animate-up">
-      {!isMobile && (
-        <div className="nav-header" style={{ marginBottom: '1.5rem', padding: '0.75rem 1.25rem' }}>
-          <div className="nav-brand" style={{ fontSize: '1.2rem' }}>
-            <FiActivity style={{ color: 'var(--primary)' }} />
-            ExpenseTracker
-          </div>
-          <div className="nav-links">
-             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
-              <span style={{ 
-                width: '6px', 
-                height: '6px', 
-                borderRadius: '50%', 
-                backgroundColor: isConnected ? '#10b981' : '#ef4444',
-                boxShadow: isConnected ? '0 0 6px #10b981' : '0 0 6px #ef4444'
-              }}></span>
-              <span style={{ color: 'var(--text-muted)' }}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-            {isConnected && (
-              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                {syncButtonContent}
-              </div>
-            )}
-          </div>
-        </div>
-      )}      {/* ─── FILTER BAR ─────────────────────────────────────────── */}
+    <div>
+      {/* ─── FILTER BAR ─────────────────────────────────────────── */}
       <div style={{ padding: '1.25rem 1.25rem 0', background: isMobile ? 'hsla(240,10%,6%,0.8)' : 'transparent', borderBottom: isMobile ? '1px solid var(--border-light)' : 'none', marginBottom: isMobile ? '0' : '1rem' }}>
 
         {/* Title row */}

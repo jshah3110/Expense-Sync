@@ -52,9 +52,9 @@ const Navigation = () => {
 function App() {
   return (
     <Router>
-      <div className="app-container">
+      <div style={{ minHeight: '100vh', minHeight: '-webkit-fill-available' }}>
         <Navigation />
-        <main>
+        <main className="app-container">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
