@@ -388,64 +388,82 @@ def get_plaid_status(db: Session = Depends(get_db)):
     return {"connected": connected, "connections": formatted}
 
 @router.get("/analytics")
-def get_analytics(db: Session = Depends(get_db)):
-    """Fetch aggregated analytics data for the dashboard"""
+def get_analytics(month: str = None, db: Session = Depends(get_db)):
+    """Fetch aggregated analytics data for the dashboard. Accepts optional ?month=YYYY-MM to filter."""
+    import calendar
+
     # Fetch all except ignored transactions
     txs = db.query(Transaction).filter(Transaction.is_ignored == False).order_by(Transaction.date.asc()).all()
-    
+
     today = datetime.datetime.now()
     current_month = today.strftime('%Y-%m')
-    last_month_date = (today.replace(day=1) - datetime.timedelta(days=1))
-    last_month = last_month_date.strftime('%Y-%m')
-    
+
+    # Resolve target month (default to current)
+    target_month = month if month else current_month
+    try:
+        target_dt = datetime.datetime.strptime(target_month + "-01", "%Y-%m-%d")
+    except ValueError:
+        target_dt = today
+        target_month = current_month
+
+    # Compute previous month
+    prev_dt = target_dt.replace(day=1) - datetime.timedelta(days=1)
+    prev_month = prev_dt.strftime('%Y-%m')
+
+    # Days in each month
+    days_in_target = calendar.monthrange(target_dt.year, target_dt.month)[1]
+    days_in_prev = calendar.monthrange(prev_dt.year, prev_dt.month)[1]
+
+    # For current month only go up to today; for past months use the full month
+    target_last_day = today.day if target_month == current_month else days_in_target
+
     summary = {
         "total_this_month": 0,
         "total_last_month": 0,
         "total_all_time": 0,
-        "transaction_count": len(txs),
+        "transaction_count": 0,
         "synced_count": 0,
         "synced_total": 0,
-        "synced_percentage": 0
+        "synced_percentage": 0,
+        "target_month": target_month,
+        "prev_month": prev_month,
     }
-    
+
     category_map = {}
     month_map = {}
-    
-    # Store raw daily sums
-    daily_sums_this_month = {str(d).zfill(2): 0 for d in range(1, 32)}
-    daily_sums_last_month = {str(d).zfill(2): 0 for d in range(1, 32)}
+
+    daily_sums_target = {str(d).zfill(2): 0 for d in range(1, 32)}
+    daily_sums_prev   = {str(d).zfill(2): 0 for d in range(1, 32)}
 
     for t in txs:
-        amount = t.amount
+        amount  = t.amount
         t_month = t.date[:7] if t.date else ''
-        cat = t.category or "General"
+        cat     = t.category or "General"
 
-        # Overall summary aggregation
         summary["total_all_time"] += amount
-        
-        # Pacing data
+
         if t.date:
             day_str = t.date[8:10]
-            if t_month == current_month:
+            if t_month == target_month:
                 summary["total_this_month"] += amount
-                if day_str in daily_sums_this_month:
-                    daily_sums_this_month[day_str] += amount
-            elif t_month == last_month:
+                summary["transaction_count"] += 1
+                if day_str in daily_sums_target:
+                    daily_sums_target[day_str] += amount
+                # Category breakdown scoped to target month
+                if cat not in category_map:
+                    category_map[cat] = {"category": cat, "total": 0, "count": 0}
+                category_map[cat]["total"] += amount
+                category_map[cat]["count"] += 1
+                if t.is_synced:
+                    summary["synced_count"] += 1
+                    summary["synced_total"] += amount
+
+            elif t_month == prev_month:
                 summary["total_last_month"] += amount
-                if day_str in daily_sums_last_month:
-                    daily_sums_last_month[day_str] += amount
+                if day_str in daily_sums_prev:
+                    daily_sums_prev[day_str] += amount
 
-        if t_month == current_month and t.is_synced:
-            summary["synced_count"] += 1
-            summary["synced_total"] += amount
-
-        # Category grouping (All Time for now, could be scoped to current month if preferred later)
-        if cat not in category_map:
-            category_map[cat] = {"category": cat, "total": 0, "count": 0}
-        category_map[cat]["total"] += amount
-        category_map[cat]["count"] += 1
-        
-        # Monthly grouping
+        # Monthly grouping for bar chart (always all-time)
         if t_month:
             if t_month not in month_map:
                 month_map[t_month] = {"month": t_month, "personal": 0, "synced": 0, "total": 0, "count": 0}
@@ -455,50 +473,39 @@ def get_analytics(db: Session = Depends(get_db)):
                 month_map[t_month]["personal"] += amount
             month_map[t_month]["total"] += amount
             month_map[t_month]["count"] += 1
-            
-    # Calculate percentage
+
     if summary["total_this_month"] > 0:
         summary["synced_percentage"] = round((summary["synced_total"] / summary["total_this_month"]) * 100)
 
-    # Build cumulative pacing arrays (carry forward logic)
+    # Build cumulative pacing (target month vs previous month)
     pacing_data = []
     cum_this = 0
     cum_last = 0
-    
-    last_day_of_last_month = last_month_date.day
-    current_day = today.day
+    max_day = max(target_last_day, days_in_prev)
 
-    for d in range(1, 32):
+    for d in range(1, max_day + 1):
         day_str = str(d).zfill(2)
-        
-        # Determine if we should plot this point
-        val_this = None
-        if d <= current_day:
-            cum_this += daily_sums_this_month[day_str]
-            val_this = round(cum_this, 2)
-            
-        val_last = None
-        if d <= last_day_of_last_month:
-            cum_last += daily_sums_last_month[day_str]
-            val_last = round(cum_last, 2)
-            
-        # Only add valid days (e.g. stop at 30 for April)
-        if d <= max(current_day, last_day_of_last_month):
-            pacing_data.append({
-                "day": day_str,
-                "this_month": val_this,
-                "last_month": val_last
-            })
 
-    # Sort categories, months chronologically
+        val_this = None
+        if d <= target_last_day:
+            cum_this += daily_sums_target.get(day_str, 0)
+            val_this = round(cum_this, 2)
+
+        val_last = None
+        if d <= days_in_prev:
+            cum_last += daily_sums_prev.get(day_str, 0)
+            val_last = round(cum_last, 2)
+
+        pacing_data.append({"day": day_str, "this_month": val_this, "last_month": val_last})
+
     by_category = sorted(list(category_map.values()), key=lambda x: x['total'], reverse=True)
-    by_month = sorted(list(month_map.values()), key=lambda x: x['month'])[-6:] # Last 6 months
+    by_month    = sorted(list(month_map.values()),    key=lambda x: x['month'])
 
     return {
-        "summary": summary,
+        "summary":     summary,
         "by_category": by_category,
-        "by_month": by_month,
-        "pacing": pacing_data
+        "by_month":    by_month,
+        "pacing":      pacing_data,
     }
 
 @router.get("/")
