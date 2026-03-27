@@ -501,6 +501,10 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
     by_category = sorted(list(category_map.values()), key=lambda x: x['total'], reverse=True)
     by_month    = sorted(list(month_map.values()),    key=lambda x: x['month'])
 
+    # Limit bar chart to last 6 months
+    if len(by_month) > 6:
+        by_month = by_month[-6:]
+
     return {
         "summary":     summary,
         "by_category": by_category,
