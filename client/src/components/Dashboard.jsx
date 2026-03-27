@@ -489,119 +489,112 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Page header and controls — padded on mobile since container is full-bleed */}
-      <div style={{ padding: isMobile ? '1.25rem 1.25rem 0' : '0', marginBottom: '0.75rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.2rem' }}>Overview</h2>
-          <p className="subtitle" style={{ marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.6 }}>Review and push your bank transactions.</p>
-        </div>
-
-        {/* Mobile Controls Row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch', flexWrap: 'wrap-reverse', gap: '0.6rem', marginBottom: '0.75rem' }}>
-          {isMobile && isConnected && (
-            <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)', flex: '1 1 100%' }}>
-              <div style={{ width: '100%' }}>
+      {/* Page header — padded on mobile since container is full-bleed */}
+      <div style={{ padding: isMobile ? '1.25rem 1.25rem 0' : '0 0 0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.15rem' }}>Overview</h2>
+            <p className="subtitle" style={{ fontSize: '0.8rem', opacity: 0.5, margin: 0 }}>Review and push your bank transactions.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {isMobile && isConnected && (
+              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
                 {syncButtonContent}
               </div>
-            </div>
-          )}
-          
-          <div style={{ display: 'flex', flexGrow: 1, justifyContent: 'flex-end', width: isMobile ? '100%' : 'auto' }}>
-            <button 
-              className="btn" 
-              onClick={() => setShowFilters(!showFilters)}
-              style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', width: isMobile ? '100%' : 'auto', justifyContent: 'center', background: showFilters ? 'hsla(250, 89%, 65%, 0.1)' : 'hsla(0,0%,100%,0.05)', borderColor: showFilters ? 'var(--primary)' : 'var(--border-light)' }}
-            >
-               Filters & Analytics <FiChevronDown style={{ transform: showFilters ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s ease' }} />
+            )}
+            <button className="btn" style={{ padding: '0.5rem 0.9rem', fontSize: '0.8rem', gap: '0.4rem' }} onClick={() => setShowMockForm(!showMockForm)}>
+              {showMockForm ? <FiX size={14} /> : <FiPlus size={14} />} {showMockForm ? 'Cancel' : 'Manual'}
             </button>
           </div>
         </div>
 
-        <div className={`filter-drawer ${showFilters ? 'expanded' : ''}`}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'hsla(0,0%,0%,0.2)', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
-            
-            {/* Row 1: Global Presets & Dimensionality Maps gracefully slicing bounds. */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-              <select className="glass-select" value={datePreset} onChange={(e) => setDatePreset(e.target.value)}>
-                <option value="all">All Time</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="thisMonth">This Month</option>
-                <option value="lastMonth">Last Month</option>
-                <option value="custom">Custom Range</option>
-              </select>
-              
-              <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}>
-                <option value="all">All Institutions</option>
-                {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
-                  <option key={bank} value={bank}>{bank}</option>
-                ))}
-              </select>
+        {/* ── FILTER BAR ─────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem' }}>
+
+          {/* Row 1: Date chips — horizontally scrollable */}
+          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
+            {[
+              { label: 'All', value: 'all' },
+              { label: '7d', value: '7days' },
+              { label: '30d', value: '30days' },
+              { label: 'Month', value: 'thisMonth' },
+              { label: 'Last Mo.', value: 'lastMonth' },
+              { label: 'Custom', value: 'custom' },
+            ].map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setDatePreset(value)}
+                style={{
+                  flexShrink: 0,
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '999px',
+                  border: '1px solid',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: datePreset === value ? 'var(--primary)' : 'hsla(0,0%,100%,0.05)',
+                  borderColor: datePreset === value ? 'transparent' : 'var(--border-light)',
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom date range — only shown when Custom is selected */}
+          {datePreset === 'custom' && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <span style={{ display: 'flex', alignItems: 'center', opacity: 0.4, fontSize: '0.8rem' }}>→</span>
+              <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
+          )}
 
-            {datePreset === 'custom' && (
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From</label>
-                  <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To</label>
-                  <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                </div>
-              </div>
-            )}
+          {/* Row 2: Merchant search */}
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4, fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
+            <input
+              type="text"
+              className="glass-input"
+              placeholder="Search merchants..."
+              value={merchantFilter}
+              onChange={(e) => setMerchantFilter(e.target.value)}
+              style={{ paddingLeft: '2.25rem', paddingTop: '0.5rem', paddingBottom: '0.5rem', minHeight: 'unset', fontSize: '0.88rem' }}
+            />
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-              <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="all">All Categories</option>
-                {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+          {/* Row 3: Bank / Category / Sort — compact row */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}
+              style={{ flex: '1 1 120px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
+              <option value="all">All Banks</option>
+              {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
+                <option key={bank} value={bank}>{bank}</option>
+              ))}
+            </select>
 
-              <input 
-                type="text" 
-                className="glass-input" 
-                placeholder="Search Merchant..." 
-                value={merchantFilter} 
-                onChange={(e) => setMerchantFilter(e.target.value)} 
-              />
-            </div>
+            <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{ flex: '1 1 120px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
+              <option value="all">All Categories</option>
+              {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-              <input 
-                type="checkbox" 
-                id="activeGroupsOnly" 
-                className="glass-checkbox"
-                checked={showActiveOnly}
-                onChange={(e) => setShowActiveOnly(e.target.checked)}
-                style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
-              />
-              <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sort By</label>
-              <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`} onChange={(e) => {
-                const [key, direction] = e.target.value.split('-');
-                setSortConfig({ key, direction });
-              }}>
-                <option value="date-desc">Date (Newest First)</option>
-                <option value="date-asc">Date (Oldest First)</option>
-                <option value="amount-desc">Amount (Highest First)</option>
-                <option value="amount-asc">Amount (Lowest First)</option>
-              </select>
-            </div>
+            <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`}
+              onChange={(e) => { const [key, direction] = e.target.value.split('-'); setSortConfig({ key, direction }); }}
+              style={{ flex: '1 1 100px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
+              <option value="date-desc">Newest</option>
+              <option value="date-asc">Oldest</option>
+              <option value="amount-desc">$ High→Low</option>
+              <option value="amount-asc">$ Low→High</option>
+            </select>
           </div>
         </div>
-
-        <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
-            {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
-          </button>
-          {/* The sync button is now handled by syncButtonContent and its placement */}
-        </div>
+        {/* ── END FILTER BAR ─────────────────────────── */}
       </div>
 
       {showMockForm && (
