@@ -247,6 +247,10 @@ h1, h2, h3, .nav-brand {
   font-family: 'Outfit', sans-serif;
   font-weight: 600;
   font-size: 1.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .tx-date {
@@ -310,6 +314,44 @@ h1, h2, h3, .nav-brand {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsla(0, 0%, 100%, 0.2);
+}
+
+/* Mobile Component Logic */
+.filter-drawer {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transform: translateY(-10px);
+}
+.filter-drawer.expanded {
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 1rem;
+}
+
+.fab-container {
+  position: fixed;
+  bottom: 85px; /* Above the 70px mobile bottom navigation */
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.fab-dropdown {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  animation: fadeInUp 0.3s ease;
 }
 
 /* ==========================================

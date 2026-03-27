@@ -16,12 +16,12 @@ const Navigation = () => {
   
   return (
     <>
-      <nav className="nav-header animate-fade-in">
-        <div className="nav-brand">
-          <FiActivity className="text-gradient" />
-          <span>ExpenseSync</span>
-        </div>
-        {!isMobile && (
+      {!isMobile && (
+        <nav className="nav-header animate-fade-in">
+          <div className="nav-brand">
+            <FiActivity className="text-gradient" />
+            <span>ExpenseSync</span>
+          </div>
           <div className="nav-links">
             <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
               <FiHome /> Dashboard
@@ -30,8 +30,8 @@ const Navigation = () => {
               <FiSettings /> Connect API
             </Link>
           </div>
-        )}
-      </nav>
+        </nav>
+      )}
 
       {isMobile && (
         <nav className="mobile-nav-bar animate-fade-in">

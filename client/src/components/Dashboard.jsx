@@ -20,6 +20,15 @@ const Dashboard = () => {
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const [showFilters, setShowFilters] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (datePreset === 'all') {
@@ -371,144 +380,191 @@ const Dashboard = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
   if (loading) {
     return <div style={{ textAlign: 'center', marginTop: '4rem' }}><FiRefreshCw className="spin" size={32} /></div>;
   }
 
-  return (
-    <div className="app-container animate-up">
-      <div className="nav-header" style={{ marginBottom: '1.5rem', padding: '0.75rem 1.25rem' }}>
-        <div className="nav-brand" style={{ fontSize: '1.2rem' }}>
-          <FiActivity style={{ color: 'var(--primary)' }} />
-          ExpenseTracker
-        </div>
-        <div className="nav-links">
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
-            <span style={{ 
-              width: '6px', 
-              height: '6px', 
-              borderRadius: '50%', 
-              backgroundColor: isConnected ? '#10b981' : '#ef4444',
-              boxShadow: isConnected ? '0 0 6px #10b981' : '0 0 6px #ef4444'
-            }}></span>
-            <span style={{ color: isConnected ? '#10b981' : '#ef4444', fontWeight: '600' }}>
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
+  // React element securely rendering the Sync Bank actions securely.
+  const syncButtonContent = (
+    <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      <button className="btn" style={{ padding: '0.6rem 1.25rem', border: 'none', background: isMobile ? 'var(--primary)' : 'transparent', color: '#fff', boxShadow: 'none', borderRadius: isMobile ? '12px 0 0 12px' : 0, margin: 0 }} onClick={handleSyncBank} disabled={isSyncing}>
+        <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
+        {isSyncing ? 'Syncing...' : 'Sync Now'}
+      </button>
+      <div style={{ width: '1px', background: 'hsla(0,0%,100%,0.2)', margin: '0.4rem 0' }}></div>
+      <div style={{ position: 'relative' }}>
+        <select 
+          className="glass-select" 
+          value={syncDays}
+          onChange={(e) => setSyncDays(e.target.value)}
+          style={{ 
+            background: 'transparent', 
+            border: 'none', 
+            boxShadow: 'none', 
+            padding: '0.6rem 2rem 0.6rem 1rem', 
+            width: '100%', 
+            height: '100%',
+            fontWeight: '600',
+            color: 'var(--text-secondary)',
+            appearance: 'none',
+            outline: 'none',
+            borderRadius: isMobile ? '0 12px 12px 0' : 0
+          }}
+        >
+          <option value="7" style={{color: '#000'}}>Past 7 Days</option>
+          <option value="30" style={{color: '#000'}}>Past 30 Days</option>
+          <option value="90" style={{color: '#000'}}>Past 90 Days</option>
+          <option value="all" style={{color: '#000'}}>Unlimited History</option>
+        </select>
+        <div style={{ position: 'absolute', right: '0.8rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+          <FiChevronDown size={14} />
         </div>
       </div>
+    </div>
+  );
 
+  return (
+    <div className="app-container animate-up">
+      {!isMobile && (
+        <div className="nav-header" style={{ marginBottom: '1.5rem', padding: '0.75rem 1.25rem' }}>
+          <div className="nav-brand" style={{ fontSize: '1.2rem' }}>
+            <FiActivity style={{ color: 'var(--primary)' }} />
+            ExpenseTracker
+          </div>
+          <div className="nav-links">
+             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
+              <span style={{ 
+                width: '6px', 
+                height: '6px', 
+                borderRadius: '50%', 
+                backgroundColor: isConnected ? '#10b981' : '#ef4444',
+                boxShadow: isConnected ? '0 0 6px #10b981' : '0 0 6px #ef4444'
+              }}></span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            {isConnected && (
+              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                {syncButtonContent}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Floating Action Button (FAB) strictly rendered out-of-bounds on devices purely mapping to CSS bottom coordinates natively. */}
+      {isMobile && isConnected && (
+        <div className="fab-container">
+          <div style={{ display: 'flex', background: 'var(--bg-card)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-focus)', boxShadow: '0 8px 25px rgba(0,0,0,0.5)' }}>
+            {syncButtonContent}
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom: '1.5rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
           <p className="subtitle" style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>Review and push your bank transactions.</p>
         </div>
         {/* Advanced Filters Bar */}
-        <div className="glass-card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', background: 'hsla(0,0%,100%,0.02)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Timeframe</label>
-            <select className="glass-select" value={datePreset} onChange={(e) => setDatePreset(e.target.value)} style={{ minWidth: '140px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
-              <option value="all">All Time</option>
-              <option value="7days">Last 7 Days</option>
-              <option value="30days">Last 30 Days</option>
-              <option value="thisMonth">This Month</option>
-              <option value="lastMonth">Last Month</option>
-              <option value="custom">Custom Range...</option>
-            </select>
-          </div>
+        {/* Main Dashboard Tabs cleanly wrapping analytical interfaces instantly. */}
+        {/* Dynamic Data Analytical Dashboards */}
+        
+        {/* Mobile Drawer Trigger cleanly popping Filter configurations conditionally! */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <button 
+            className="btn" 
+            onClick={() => setShowFilters(!showFilters)}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', background: showFilters ? 'hsla(250, 89%, 65%, 0.1)' : 'hsla(0,0%,100%,0.05)', borderColor: showFilters ? 'var(--primary)' : 'var(--border-light)' }}
+          >
+             Filters & Analytics <FiChevronDown style={{ transform: showFilters ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s ease' }} />
+          </button>
+        </div>
 
-          {datePreset === 'custom' && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From</label>
-                <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To</label>
-                <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-              </div>
+        <div className={`filter-drawer ${showFilters ? 'expanded' : ''}`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'hsla(0,0%,0%,0.2)', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
+            
+            {/* Row 1: Global Presets & Dimensionality Maps gracefully slicing bounds. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              <select className="glass-select" value={datePreset} onChange={(e) => setDatePreset(e.target.value)}>
+                <option value="all">All Time</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="thisMonth">This Month</option>
+                <option value="lastMonth">Last Month</option>
+                <option value="custom">Custom Range</option>
+              </select>
+              
+              <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}>
+                <option value="all">All Institutions</option>
+                {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
+                  <option key={bank} value={bank}>{bank}</option>
+                ))}
+              </select>
             </div>
-          )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bank / Card</label>
-            <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)} style={{ minWidth: '130px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
-              <option value="all">All Accounts</option>
-              {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(Boolean))).sort().map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
+            {datePreset === 'custom' && (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From</label>
+                  <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To</label>
+                  <input type="date" className="glass-input" style={{ padding: '0.4rem 0.8rem', colorScheme: 'dark', fontSize: '0.85rem', minHeight: 'unset' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
+              </div>
+            )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</label>
-            <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ minWidth: '140px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
-              <option value="all">All Categories</option>
-              {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="all">All Categories</option>
+                {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sort By</label>
-            <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`} onChange={(e) => {
-              const [key, direction] = e.target.value.split('-');
-              setSortConfig({ key, direction });
-            }} style={{ minWidth: '160px', padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}>
-              <option value="date-desc">Date (Newest First)</option>
-              <option value="date-asc">Date (Oldest First)</option>
-              <option value="amount-desc">Amount (Highest First)</option>
-              <option value="amount-asc">Amount (Lowest First)</option>
-            </select>
-          </div>
+              <input 
+                type="text" 
+                className="glass-input" 
+                placeholder="Search Merchant..." 
+                value={merchantFilter} 
+                onChange={(e) => setMerchantFilter(e.target.value)} 
+              />
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flexGrow: 1, minWidth: '150px' }}>
-            <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Merchant Search</label>
-            <input 
-              type="text" 
-              className="glass-input" 
-              placeholder="e.g. Starbucks, Uber..." 
-              value={merchantFilter} 
-              onChange={(e) => setMerchantFilter(e.target.value)} 
-              style={{ padding: '0.5rem 0.8rem', fontSize: '0.85rem', minHeight: 'unset' }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <input 
+                type="checkbox" 
+                id="activeGroupsOnly" 
+                className="glass-checkbox"
+                checked={showActiveOnly}
+                onChange={(e) => setShowActiveOnly(e.target.checked)}
+                style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
+              />
+              <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sort By</label>
+              <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`} onChange={(e) => {
+                const [key, direction] = e.target.value.split('-');
+                setSortConfig({ key, direction });
+              }}>
+                <option value="date-desc">Date (Newest First)</option>
+                <option value="date-asc">Date (Oldest First)</option>
+                <option value="amount-desc">Amount (Highest First)</option>
+                <option value="amount-asc">Amount (Lowest First)</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div className="tx-controls-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.25rem', fontSize: '0.8rem' }}>
-            <input 
-              type="checkbox" 
-              id="activeGroupsOnly" 
-              className="glass-checkbox"
-              checked={showActiveOnly}
-              onChange={(e) => setShowActiveOnly(e.target.checked)}
-              style={{ cursor: 'pointer', width: '1rem', height: '1rem' }}
-            />
-            <label htmlFor="activeGroupsOnly" style={{ cursor: 'pointer', opacity: 0.8, fontWeight: '500' }}>Balance Only</label>
-          </div>
           <button className="btn" style={{ padding: '0.6rem 1rem' }} onClick={() => setShowMockForm(!showMockForm)}>
             {showMockForm ? <FiX /> : <FiPlus />} {showMockForm ? 'Cancel' : 'Manual'}
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--primary)', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 12px hsla(250, 89%, 65%, 0.2)' }}>
-            <select 
-              value={syncDays} 
-              onChange={(e) => setSyncDays(e.target.value)} 
-              style={{ border: 'none', background: 'rgba(0,0,0,0.15)', color: '#fff', padding: '0.6rem 0.8rem', fontSize: '0.85rem', fontWeight: 500, outline: 'none', appearance: 'menulist' }}
-            >
-              <option value="7" style={{color: '#000'}}>Past 7 Days</option>
-              <option value="30" style={{color: '#000'}}>Past 30 Days</option>
-              <option value="90" style={{color: '#000'}}>Past 90 Days</option>
-              <option value="all" style={{color: '#000'}}>Unlimited History</option>
-            </select>
-            <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(255,255,255,0.2)' }}></div>
-            <button className="btn" style={{ padding: '0.6rem 1.25rem', border: 'none', background: 'transparent', color: '#fff', boxShadow: 'none', borderRadius: 0, margin: 0 }} onClick={handleSyncBank} disabled={isSyncing}>
-              <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
-              {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </button>
-          </div>
+          {/* The sync button is now handled by syncButtonContent and its placement */}
         </div>
       </div>
 
