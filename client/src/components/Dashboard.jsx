@@ -138,8 +138,14 @@ const Dashboard = () => {
   useEffect(() => {
     fetchStatus();
     fetchTransactions();
-    fetchGroups();
   }, []);
+
+  // Only fetch Splitwise groups once we confirm connection — avoids 401 spam
+  useEffect(() => {
+    if (isConnected) {
+      fetchGroups();
+    }
+  }, [isConnected]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -403,9 +409,12 @@ const Dashboard = () => {
     
     if (!isRightTab) return false;
     
-    const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
-    if (dateFrom && txDate < dateFrom) return false;
-    if (dateTo && txDate > dateTo) return false;
+    // Date filter only applies to the Backlog tab — Others/Pushed show full history
+    if (activeTab === 'backlog') {
+      const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
+      if (dateFrom && txDate < dateFrom) return false;
+      if (dateTo && txDate > dateTo) return false;
+    }
 
     if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
     if (bankFilter !== 'all' && (t.bank_name || 'Unknown') !== bankFilter) return false;
@@ -497,7 +506,7 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Row 2: Sync Now button (mobile only, full width) */}
+        {/* Row 2: Sync Now button — mobile when connected, desktop always visible in filter bar */}
         {isMobile && isConnected && (
           <div style={{ marginBottom: '0.85rem', display: 'flex', gap: '0.5rem' }}>
             <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
@@ -561,7 +570,7 @@ const Dashboard = () => {
         )}
 
         {/* Search + compact filters: 2-col grid on mobile to prevent truncation */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto auto', gap: '0.5rem', marginBottom: '0.9rem', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto auto auto', gap: '0.5rem', marginBottom: '0.9rem', alignItems: 'center' }}>
           <div style={{ position: 'relative', gridColumn: isMobile ? 'span 2' : 'auto' }}>
             <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: '0.8rem', pointerEvents: 'none' }}>🔍</span>
             <input
@@ -595,6 +604,12 @@ const Dashboard = () => {
             <option value="amount-desc">$ High↓</option>
             <option value="amount-asc">$ Low↑</option>
           </select>
+          {/* Desktop-only Sync Now button in filter row */}
+          {!isMobile && (
+            <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)', height: '100%' }}>
+              {syncButtonContent}
+            </div>
+          )}
         </div>
       </div>
       {/* ─── END FILTER BAR ──────────────────────────────────────── */}

@@ -156,12 +156,13 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
         }
 
     if not connections:
-        # RETURN MOCK DATA FOR TESTING
+        # RETURN MOCK DATA FOR TESTING — use relative dates so filters always show them
+        today = datetime.datetime.now()
         mock_raw = [
-            {"transaction_id": "mock1", "account_id": "acc1", "amount": 24.50, "date": "2026-03-14", "name": "Uber 063015 SF", "merchant_name": "Uber", "category": ["Transport"]},
-            {"transaction_id": "mock2", "account_id": "acc1", "amount": 142.10, "date": "2026-03-13", "name": "Whole Foods Market", "merchant_name": "Whole Foods", "category": ["Groceries"]},
-            {"transaction_id": "mock3", "account_id": "acc1", "amount": 15.99, "date": "2026-03-12", "name": "Netflix.com", "merchant_name": "Netflix", "category": ["Entertainment"]},
-            {"transaction_id": "mock4", "account_id": "acc1", "amount": 32.00, "date": "2026-03-10", "name": "AMC Theatres 1234", "merchant_name": "AMC Theatres", "category": ["Entertainment"]},
+            {"transaction_id": "mock1", "account_id": "acc1", "amount": 24.50, "date": (today - datetime.timedelta(days=2)).strftime("%Y-%m-%d"), "name": "Uber 063015 SF", "merchant_name": "Uber", "category": ["Transport"]},
+            {"transaction_id": "mock2", "account_id": "acc1", "amount": 142.10, "date": (today - datetime.timedelta(days=4)).strftime("%Y-%m-%d"), "name": "Whole Foods Market", "merchant_name": "Whole Foods", "category": ["Groceries"]},
+            {"transaction_id": "mock3", "account_id": "acc1", "amount": 15.99, "date": (today - datetime.timedelta(days=6)).strftime("%Y-%m-%d"), "name": "Netflix.com", "merchant_name": "Netflix", "category": ["Entertainment"]},
+            {"transaction_id": "mock4", "account_id": "acc1", "amount": 32.00, "date": (today - datetime.timedelta(days=10)).strftime("%Y-%m-%d"), "name": "AMC Theatres 1234", "merchant_name": "AMC Theatres", "category": ["Entertainment"]},
         ]
         
         added_count = 0
@@ -183,6 +184,9 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 )
                 db.add(new_tx)
                 added_count += 1
+            else:
+                # Update date to keep it fresh (relative to today)
+                exists.date = mapped['date']
         
         db.commit()
         return {"status": "success", "added": added_count}

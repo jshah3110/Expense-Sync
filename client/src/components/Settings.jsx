@@ -38,10 +38,13 @@ const Settings = () => {
         return;
       }
 
-      const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, {
-        // Strip out query params for the redirect URI
-        redirect_uri: window.location.href.split('?')[0]
-      });
+      // Only pass redirect_uri for non-localhost production URLs.
+      // Plaid Production requires redirect URIs to be pre-registered; localhost is not.
+      const currentUrl = window.location.href.split('?')[0];
+      const isLocalhost = currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1');
+      const body = isLocalhost ? {} : { redirect_uri: currentUrl };
+
+      const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, body);
       setLinkToken(res.data.link_token);
       localStorage.setItem('plaid_link_token', res.data.link_token);
     } catch (e) {
