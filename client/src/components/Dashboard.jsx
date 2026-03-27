@@ -489,18 +489,15 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Floating Action Button logic entirely eradicated per user explicit layout verification request natively. */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      {/* Page header and controls — padded on mobile since container is full-bleed */}
+      <div style={{ padding: isMobile ? '1.25rem 1.25rem 0' : '0', marginBottom: '0.75rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
-          <p className="subtitle" style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>Review and push your bank transactions.</p>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.2rem' }}>Overview</h2>
+          <p className="subtitle" style={{ marginBottom: '1rem', fontSize: '0.85rem', opacity: 0.6 }}>Review and push your bank transactions.</p>
         </div>
-        {/* Advanced Filters Bar */}
-        {/* Main Dashboard Tabs cleanly wrapping analytical interfaces instantly. */}
-        {/* Dynamic Data Analytical Dashboards */}
-        
-        {/* Mobile Controls Row natively stacking the Sync and Filter Dropdowns! */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch', flexWrap: 'wrap-reverse', gap: '0.75rem', marginBottom: '1rem' }}>
+
+        {/* Mobile Controls Row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch', flexWrap: 'wrap-reverse', gap: '0.6rem', marginBottom: '0.75rem' }}>
           {isMobile && isConnected && (
             <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)', flex: '1 1 100%' }}>
               <div style={{ width: '100%' }}>
@@ -801,9 +798,9 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="animate-up stagger-1">
+      <div className="animate-up stagger-1" style={{ padding: isMobile ? '0 1.25rem' : '0' }}>
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', marginTop: '0.5rem' }}>
           {['backlog', 'others', 'pushed'].map(tab => {
             const count = transactions.filter(t => {
               if (tab === 'backlog') return !t.is_synced && !t.is_ignored;

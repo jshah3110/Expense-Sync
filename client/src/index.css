@@ -338,125 +338,139 @@ h1, h2, h3, .nav-brand {
    ========================================== */
 
 @media (max-width: 640px) {
-  /* Tighten main container */
+  /* Full-bleed: no side padding on main container */
   .app-container {
-    padding: 1rem 0.75rem;
+    padding: 0;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
-  /* Nav: stack vertically on mobile */
+  /* Nav on mobile: already hidden (desktop only), but keep consistent if shown */
   .nav-header {
-    flex-direction: column;
-    gap: 0.75rem;
+    border-radius: 0;
+    margin-bottom: 0;
     padding: 1rem 1.25rem;
-    margin-bottom: 1.75rem;
-    text-align: center;
   }
 
-  .nav-brand {
-    font-size: 1.3rem;
-    justify-content: center;
-  }
+  .nav-brand { font-size: 1.2rem; }
 
-  .nav-links {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
+  /* === PAGE HEADER SECTION === */
+  /* Overview title + subtitle: give breathing room */
+  h2 { font-size: 1.4rem !important; }
 
-  .nav-link {
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
-  }
-
-  /* Transaction header controls: stack vertically */
+  /* === SYNC + FILTER BAR === */
   .tx-controls-row {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 0.75rem !important;
   }
-
   .tx-controls-row > div,
   .tx-controls-row > button {
     width: 100%;
     justify-content: center;
   }
 
-  /* Tx header row: tighter on mobile */
-  .tx-header {
-    padding: 1rem !important;
+  /* === TRANSACTION CARDS: full-bleed === */
+  .transaction-list {
+    gap: 0;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Amount and chevron: shrink */
-  .tx-amount { font-size: 1rem !important; }
-  .tx-name { font-size: 0.95rem !important; }
+  .transaction-item {
+    padding: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: 1px solid var(--border-light);
+    background: transparent;
+  }
 
-  /* Fields grid: single column on very small screens */
+  .transaction-item:last-child {
+    border-bottom: none;
+  }
+
+  .transaction-item.expanded {
+    background: hsla(250, 89%, 65%, 0.04);
+    border-bottom: 1px solid var(--primary-glow);
+  }
+
+  .transaction-item:hover {
+    background: hsla(0, 0%, 100%, 0.03);
+  }
+
+  /* Card header row */
+  .tx-header {
+    padding: 1.1rem 1.25rem !important;
+  }
+
+  /* Merchant name: bigger and bolder on mobile */
+  .tx-name {
+    font-size: 1rem !important;
+    max-width: 58vw;
+  }
+
+  .tx-amount { font-size: 1.05rem !important; font-weight: 700 !important; }
+
+  /* Expanded card content area */
+  .tx-content {
+    padding: 0 1.25rem 1.5rem !important;
+  }
+
+  /* Fields: 2-col grid on mobile */
   .tx-fields-grid {
     grid-template-columns: 1fr 1fr !important;
     gap: 0.75rem;
   }
 
-  /* Glass cards: reduce padding */
+  /* Glass cards (settings etc) */
   .glass-card {
-    border-radius: var(--radius-lg);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
-
-  /* Buttons: full width on mobile forms */
-  .mobile-full {
-    width: 100%;
-  }
-
-  /* Member labels: wrap nicely */
-  .member-label {
-    flex: 0 0 auto;
-  }
-
-  /* Push button row: stack on mobile */
-  .push-btn-row {
-    flex-direction: column !important;
-    gap: 0.75rem !important;
-  }
-
-  .push-btn-row > button {
-    width: 100%;
-  }
-
-  /* Inputs: ensure minimum touch target (44px) */
-  .glass-input,
-  .glass-select,
-  .btn {
-    min-height: 44px;
-  }
-
-  /* Reduce font size slightly for tx content area */
-  .tx-content {
-    padding: 0 1rem 1rem !important;
-  }
-
-  /* Page headings */
-  h2 { font-size: 1.25rem !important; }
-
-  /* Settings cards */
   .glass-card > div:first-child {
     flex-direction: column;
     gap: 0.75rem;
   }
 
-  /* Bottom Nav Bar for Mobile */
+  /* Inputs & selects: full touch targets */
+  .glass-input,
+  .glass-select,
+  .btn {
+    min-height: 48px;
+  }
+
+  /* Push/action button row: full width stack */
+  .push-btn-row {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  .push-btn-row > button {
+    width: 100% !important;
+    min-height: 52px;
+    font-size: 1rem !important;
+  }
+
+  .member-label { flex: 0 0 auto; }
+  .mobile-full { width: 100%; }
+
+  /* Bottom Nav Bar */
   .mobile-nav-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 70px;
-    background: hsla(240, 10%, 4%, 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    height: 64px;
+    background: hsla(240, 10%, 5%, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border-top: 1px solid var(--border-light);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 0.5rem;
     z-index: 1000;
   }
 
@@ -464,25 +478,27 @@ h1, h2, h3, .nav-brand {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    color: var(--text-secondary);
+    gap: 3px;
+    color: var(--text-muted);
     text-decoration: none;
-    font-size: 0.7rem;
-    font-weight: 500;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     transition: var(--transition-smooth);
+    padding: 0.5rem 1rem;
+    border-radius: 12px;
   }
 
-  .mobile-nav-item svg {
-    font-size: 1.4rem;
-  }
+  .mobile-nav-item svg { font-size: 1.3rem; }
 
   .mobile-nav-item.active {
     color: var(--primary);
+    background: hsla(250, 89%, 65%, 0.1);
   }
 
-  /* Adjust padding for bottom nav */
+  /* Ensure content clears bottom nav */
   body {
-    padding-bottom: 80px;
+    padding-bottom: 72px;
   }
 }
 
