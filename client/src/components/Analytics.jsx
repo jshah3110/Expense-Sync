@@ -388,7 +388,7 @@ const Analytics = () => {
             </div>
 
             {/* Category list */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {by_category.map((cat, i) => {
                 const pct = summary.total_this_month > 0
                   ? (cat.total / summary.total_this_month) * 100
@@ -398,18 +398,27 @@ const Analytics = () => {
                     key={`${summary.target_month}-${cat.category}`}
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '1rem 0',
-                      borderBottom: i < by_category.length - 1 ? '1px solid hsla(0,0%,100%,0.05)' : 'none',
+                      padding: '0.875rem 1rem',
+                      borderRadius: '12px',
+                      background: 'hsla(0,0%,100%,0)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'hsla(0,0%,100%,0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'hsla(0,0%,100%,0)';
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: COLORS[i % COLORS.length] }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                      <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
                       <span style={{ fontWeight: 500, fontSize: '1rem' }}>{cat.category}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(1)}%</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 600 }}>{fmt(cat.total)}</span>
-                      <FiChevronRight color="var(--text-muted)" />
+                      <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.total)}</span>
+                      <FiChevronRight size={18} style={{ color: 'var(--text-muted)', transition: 'all 0.2s ease', opacity: 0.6 }} />
                     </div>
                   </div>
                 );
