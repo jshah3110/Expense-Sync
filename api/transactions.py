@@ -425,6 +425,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
         "synced_count": 0,
         "synced_total": 0,
         "synced_percentage": 0,
+        "unsynced_total": 0,
+        "unsynced_percentage": 0,
         "target_month": target_month,
         "prev_month": prev_month,
     }
@@ -476,6 +478,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
 
     if summary["total_this_month"] > 0:
         summary["synced_percentage"] = round((summary["synced_total"] / summary["total_this_month"]) * 100)
+        summary["unsynced_total"] = summary["total_this_month"] - summary["synced_total"]
+        summary["unsynced_percentage"] = 100 - summary["synced_percentage"]
 
     # Build cumulative pacing (target month vs previous month)
     pacing_data = []

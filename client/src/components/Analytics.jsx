@@ -217,6 +217,46 @@ const Analytics = () => {
             </div>
           )}
         </div>
+
+        {/* Spend Breakdown Bar */}
+        {summary.total_this_month > 0 && (
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', height: '24px', gap: '2px', borderRadius: '4px', overflow: 'hidden', background: 'hsla(0,0%,100%,0.05)' }}>
+              <div style={{
+                flex: summary.unsynced_percentage,
+                background: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                color: 'white',
+                minWidth: summary.unsynced_percentage > 15 ? 'auto' : 0,
+                overflow: 'hidden'
+              }}>
+                {summary.unsynced_percentage > 15 && `${summary.unsynced_percentage}%`}
+              </div>
+              <div style={{
+                flex: summary.synced_percentage,
+                background: 'var(--splitwise)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                color: 'white',
+                minWidth: summary.synced_percentage > 15 ? 'auto' : 0,
+                overflow: 'hidden'
+              }}>
+                {summary.synced_percentage > 15 && `${summary.synced_percentage}%`}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
+              <div><span style={{ color: '#ef4444', fontWeight: 600 }}>Others:</span> {fmt(summary.unsynced_total)}</div>
+              <div><span style={{ color: 'var(--splitwise)', fontWeight: 600 }}>Splitwise:</span> {fmt(summary.synced_total)}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── MAIN CHART ─────────────────────────────────────────────────────── */}
