@@ -25,7 +25,7 @@ const Navigation = () => {
           </div>
           <div className="nav-links">
             <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
-              <FiHome /> Dashboard
+              <FiHome /> Home
             </Link>
             <Link to="/analytics" className={`nav-link ${location.pathname === '/analytics' ? 'active' : ''}`}>
               <FiBarChart2 /> Analytics
@@ -41,7 +41,7 @@ const Navigation = () => {
         <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr auto' }}>
           <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
             <FiHome />
-            <span>Dashboard</span>
+            <span>Home</span>
           </Link>
           <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
             <FiBarChart2 />

@@ -51,51 +51,78 @@ const Analytics = () => {
   // Format currency
   const fmt = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
+  // Function to render custom pie chart labels
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) + 20; // push label outside
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+    
+    // Don't show labels for tiny slivers (< 3%)
+    if (percent < 0.03) return null;
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill={COLORS[index % COLORS.length]} 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={500}
+      >
+        {`${name} (${(percent * 100).toFixed(0)}%)`}
+      </text>
+    );
+  };
+
   return (
-    <div className="animate-fade-in stagger-1" style={{ paddingBottom: '5rem' }}>
+    <div className="animate-fade-in stagger-1" style={{ paddingBottom: '5rem', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingTop: '1rem' }}>
       <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Analytics</h2>
-      <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Your spending insights.</p>
+      <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>Your spending insights.</p>
 
       {/* KPI Grid */}
       <div className="kpi-grid" style={{ 
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', 
+        gap: '0.75rem', 
+        marginBottom: '2rem' 
       }}>
         {/* Total This Month */}
-        <div className="glass-card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+        <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
             <FiActivity /> This Month
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: '600' }}>
+          <div style={{ fontSize: '1.35rem', fontWeight: '700' }}>
             {fmt(summary.total_this_month)}
           </div>
-          <div style={{ fontSize: '0.8rem', color: isUp ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.75rem', color: isUp ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
             {isUp ? <FiTrendingUp /> : <FiTrendingDown />}
-            {fmt(Math.abs(deltaFromLastMonth))} vs last month
+            {fmt(Math.abs(deltaFromLastMonth))} vs prev
           </div>
         </div>
 
         {/* Daily Average */}
-        <div className="glass-card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-            <FiDollarSign /> Daily Average (This Month)
+        <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            <FiDollarSign /> Daily Avg
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: '600' }}>
+          <div style={{ fontSize: '1.35rem', fontWeight: '700' }}>
             {fmt(summary.avg_per_day_this_month)}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-            Projected: {fmt(summary.avg_per_day_this_month * 30)}
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            Proj: {fmt(summary.avg_per_day_this_month * 30)}
           </div>
         </div>
 
         {/* Splitwise Impact */}
-        <div className="glass-card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--splitwise)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-            ⚡ Splitwise Impact
+        <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--splitwise)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            ⚡ Splitwise
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: '600' }}>
+          <div style={{ fontSize: '1.35rem', fontWeight: '700' }}>
             {fmt(summary.synced_total)}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             {summary.synced_count} expenses pushed
           </div>
         </div>
@@ -116,9 +143,11 @@ const Analytics = () => {
                   nameKey="category"
                   cx="50%"
                   cy="50%"
-                  innerRadius="60%"
-                  outerRadius="80%"
+                  innerRadius="50%"
+                  outerRadius="70%"
                   paddingAngle={2}
+                  label={renderCustomizedLabel}
+                  labelLine={false}
                 >
                   {by_category.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

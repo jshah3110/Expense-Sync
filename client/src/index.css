@@ -348,7 +348,7 @@ h1, h2, h3, .nav-brand {
 @media (max-width: 640px) {
   /* Mobile container — keep consistent side padding */
   .app-container {
-    padding: 0 0 1.5rem 0;
+    padding: max(2.5rem, env(safe-area-inset-top)) 0 1.5rem 0;
     max-width: 100vw;
     overflow-x: hidden;
   }
