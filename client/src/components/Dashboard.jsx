@@ -487,115 +487,106 @@ const Dashboard = () => {
             )}
           </div>
         </div>
-      )}
+      )}      {/* ─── FILTER BAR ─────────────────────────────────────────── */}
+      <div style={{ padding: '1.25rem 1.25rem 0', background: isMobile ? 'hsla(240,10%,6%,0.8)' : 'transparent', borderBottom: isMobile ? '1px solid var(--border-light)' : 'none', marginBottom: isMobile ? '0' : '1rem' }}>
 
-      {/* Page header — padded on mobile since container is full-bleed */}
-      <div style={{ padding: isMobile ? '1.25rem 1.25rem 0' : '0 0 0.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        {/* Title row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.15rem' }}>Overview</h2>
-            <p className="subtitle" style={{ fontSize: '0.8rem', opacity: 0.5, margin: 0 }}>Review and push your bank transactions.</p>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: '0.1rem' }}>Transactions</h2>
+            <p className="subtitle" style={{ fontSize: '0.75rem', opacity: 0.45, margin: 0 }}>Tap a transaction to push to Splitwise</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
             {isMobile && isConnected && (
-              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
                 {syncButtonContent}
               </div>
             )}
-            <button className="btn" style={{ padding: '0.5rem 0.9rem', fontSize: '0.8rem', gap: '0.4rem' }} onClick={() => setShowMockForm(!showMockForm)}>
-              {showMockForm ? <FiX size={14} /> : <FiPlus size={14} />} {showMockForm ? 'Cancel' : 'Manual'}
+            <button className="btn" style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', gap: '0.35rem', minHeight: isMobile ? '38px' : 'auto' }} onClick={() => setShowMockForm(!showMockForm)}>
+              {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
             </button>
           </div>
         </div>
 
-        {/* ── FILTER BAR ─────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem' }}>
+        {/* Date filter chips */}
+        <div className="chip-row" style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.75rem', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+          {[
+            { label: 'All time', value: 'all' },
+            { label: '7 days', value: '7days' },
+            { label: '30 days', value: '30days' },
+            { label: 'This month', value: 'thisMonth' },
+            { label: 'Last month', value: 'lastMonth' },
+            { label: 'Custom…', value: 'custom' },
+          ].map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setDatePreset(value)}
+              style={{
+                flexShrink: 0,
+                padding: '0.3rem 0.75rem',
+                borderRadius: '999px',
+                border: '1px solid',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.18s',
+                background: datePreset === value ? 'var(--primary)' : 'hsla(0,0%,100%,0.06)',
+                borderColor: datePreset === value ? 'transparent' : 'var(--border-light)',
+                color: 'var(--text-primary)',
+                letterSpacing: '0.01em',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-          {/* Row 1: Date chips — horizontally scrollable */}
-          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
-            {[
-              { label: 'All', value: 'all' },
-              { label: '7d', value: '7days' },
-              { label: '30d', value: '30days' },
-              { label: 'Month', value: 'thisMonth' },
-              { label: 'Last Mo.', value: 'lastMonth' },
-              { label: 'Custom', value: 'custom' },
-            ].map(({ label, value }) => (
-              <button
-                key={value}
-                onClick={() => setDatePreset(value)}
-                style={{
-                  flexShrink: 0,
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '999px',
-                  border: '1px solid',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  background: datePreset === value ? 'var(--primary)' : 'hsla(0,0%,100%,0.05)',
-                  borderColor: datePreset === value ? 'transparent' : 'var(--border-light)',
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {label}
-              </button>
-            ))}
+        {datePreset === 'custom' && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <span style={{ opacity: 0.35, fontSize: '0.9rem' }}>→</span>
+            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
+        )}
 
-          {/* Custom date range — only shown when Custom is selected */}
-          {datePreset === 'custom' && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <span style={{ display: 'flex', alignItems: 'center', opacity: 0.4, fontSize: '0.8rem' }}>→</span>
-              <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
-          )}
-
-          {/* Row 2: Merchant search */}
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4, fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
+        {/* Search + compact filters row */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.9rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 0 }}>
+            <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: '0.8rem', pointerEvents: 'none' }}>🔍</span>
             <input
               type="text"
               className="glass-input"
-              placeholder="Search merchants..."
+              placeholder="Search..."
               value={merchantFilter}
               onChange={(e) => setMerchantFilter(e.target.value)}
-              style={{ paddingLeft: '2.25rem', paddingTop: '0.5rem', paddingBottom: '0.5rem', minHeight: 'unset', fontSize: '0.88rem' }}
+              style={{ paddingLeft: '2.1rem', paddingTop: '0.45rem', paddingBottom: '0.45rem', minHeight: 'unset', fontSize: '0.84rem' }}
             />
           </div>
-
-          {/* Row 3: Bank / Category / Sort — compact row */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}
-              style={{ flex: '1 1 120px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
-              <option value="all">All Banks</option>
-              {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
-                <option key={bank} value={bank}>{bank}</option>
-              ))}
-            </select>
-
-            <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{ flex: '1 1 120px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
-              <option value="all">All Categories</option>
-              {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-
-            <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`}
-              onChange={(e) => { const [key, direction] = e.target.value.split('-'); setSortConfig({ key, direction }); }}
-              style={{ flex: '1 1 100px', padding: '0.45rem 2rem 0.45rem 0.75rem', fontSize: '0.82rem', minHeight: 'unset' }}>
-              <option value="date-desc">Newest</option>
-              <option value="date-asc">Oldest</option>
-              <option value="amount-desc">$ High→Low</option>
-              <option value="amount-asc">$ Low→High</option>
-            </select>
-          </div>
+          <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}
+            style={{ flex: '0 1 120px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            <option value="all">All banks</option>
+            {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
+              <option key={bank} value={bank}>{bank}</option>
+            ))}
+          </select>
+          <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+            style={{ flex: '0 1 120px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            <option value="all">All categories</option>
+            {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`}
+            onChange={(e) => { const [key, direction] = e.target.value.split('-'); setSortConfig({ key, direction }); }}
+            style={{ flex: '0 1 100px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            <option value="date-desc">Newest</option>
+            <option value="date-asc">Oldest</option>
+            <option value="amount-desc">$ High↓</option>
+            <option value="amount-asc">$ Low↑</option>
+          </select>
         </div>
-        {/* ── END FILTER BAR ─────────────────────────── */}
       </div>
+      {/* ─── END FILTER BAR ──────────────────────────────────────── */}
 
       {showMockForm && (
         <div className="glass-card animate-up" style={{ marginBottom: '2rem', padding: '1.25rem' }}>
@@ -902,91 +893,94 @@ const Dashboard = () => {
                       transition: 'var(--transition-smooth)'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <input 
-                          type="checkbox" 
-                          className="glass-checkbox"
-                          checked={selectedTxIds.includes(tx.id)}
-                          onChange={(e) => setSelectedTxIds(prev => e.target.checked ? [...prev, tx.id] : prev.filter(id => id !== tx.id))}
-                        />
-                      </div>
-                      <div style={{ 
-                        width: '42px', height: '42px', borderRadius: '12px', background: 'hsla(0,0%,100%,0.05)', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
-                        overflow: 'hidden'
-                      }}>
-                        {tx.logo_url ? (
-                           <img src={tx.logo_url} alt={tx.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                           tx.category?.toLowerCase() === 'food' ? '🍔' : tx.category?.toLowerCase() === 'transport' ? '🚙' : '🛒'
-                        )}
-                      </div>
-                      <div>
-                        <div className="tx-name" style={{ fontSize: '1rem', fontWeight: '600' }}>{tx.name || tx.category || "General"}</div>
-                        <div className="tx-date" style={{ fontSize: '0.75rem', opacity: 0.8, display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.15rem' }}>
-                          <span>{tx.date}</span>
-                          {tx.bank_name && (
-                            <>
-                              <span style={{ opacity: 0.5 }}>•</span>
-                              <span style={{ 
-                                background: 'hsla(0,0%,100%,0.1)', 
-                                padding: '1px 6px', 
-                                borderRadius: '4px', 
-                                fontSize: '0.65rem', 
-                                letterSpacing: '0.02em',
-                                color: 'var(--text-secondary)'
-                              }}>🏦 {tx.bank_name}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                  {/* Left side: checkbox + logo + name/meta */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0, flex: 1 }}>
+                    <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                      <input 
+                        type="checkbox" 
+                        className="glass-checkbox"
+                        checked={selectedTxIds.includes(tx.id)}
+                        onChange={(e) => setSelectedTxIds(prev => e.target.checked ? [...prev, tx.id] : prev.filter(id => id !== tx.id))}
+                      />
                     </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.1rem', fontWeight: '700', color: tx.is_synced ? 'hsl(150, 60%, 50%)' : 'var(--primary)' }}>${tx.amount.toFixed(2)}</div>
-                        {tx.is_synced ? (
-                          <div style={{ fontSize: '0.7rem', color: 'hsl(150, 60%, 50%)', fontWeight: 700, letterSpacing: '0.05em' }}>✅ SYNCED</div>
-                        ) : (
-                          <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {tx.plaid_transaction_id?.startsWith('mock') ? 'Mock' : 'Plaid'}
-                          </div>
-                        )}
+                    <div style={{ 
+                      width: '40px', height: '40px', minWidth: '40px', borderRadius: '10px',
+                      background: 'hsla(250, 89%, 65%, 0.12)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.15rem', overflow: 'hidden', flexShrink: 0
+                    }}>
+                      {tx.logo_url ? (
+                        <img src={tx.logo_url} alt={tx.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        tx.category?.toLowerCase() === 'food' ? '🍔' :
+                        tx.category?.toLowerCase() === 'transport' ? '🚙' :
+                        tx.category?.toLowerCase() === 'entertainment' ? '🎬' : '🛒'
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="tx-name" style={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.2 }}>
+                        {tx.name || tx.category || 'General'}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button 
-                          className="delete-btn" 
-                          onClick={(e) => handleDelete(e, tx.id)}
-                          title="Delete Transaction"
-                          style={{ 
-                            background: 'transparent', 
-                            border: 'none', 
-                            color: 'var(--text-secondary)', 
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            opacity: 0.4,
-                            transition: 'var(--transition-smooth)'
-                          }}
-                          onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
-                          onMouseOut={(e) => e.currentTarget.style.opacity = '0.4'}
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                        <FiChevronDown style={{ 
-                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', 
-                          transition: 'var(--transition-smooth)',
-                          opacity: 0.5,
-                          fontSize: '1rem'
-                        }} />
+                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {tx.displayDate || (tx.date ? tx.date.split('T')[0] : '')}
+                        </span>
+                        {tx.bank_name && (
+                          <span style={{ 
+                            background: 'hsla(0,0%,100%,0.08)', 
+                            padding: '1px 5px', borderRadius: '4px',
+                            fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.02em'
+                          }}>🏦 {tx.bank_name}</span>
+                        )}
+                        {tx.is_ignored && (
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', opacity: 0.7 }}>👻 others</span>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Right side: amount + status + actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ 
+                        fontSize: '1rem', fontWeight: 700, 
+                        color: tx.is_synced ? 'hsl(150, 60%, 50%)' : tx.is_ignored ? 'var(--text-muted)' : 'var(--text-primary)'
+                      }}>
+                        ${tx.amount.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.1rem' }}>
+                        {tx.is_synced ? (
+                          <span style={{ color: 'hsl(150, 60%, 50%)' }}>✓ Synced</span>
+                        ) : tx.category ? (
+                          <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>{tx.category}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <button 
+                      className="delete-btn" 
+                      onClick={(e) => handleDelete(e, tx.id)}
+                      title="Delete"
+                      style={{ 
+                        background: 'transparent', border: 'none', color: 'var(--text-muted)', 
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        opacity: 0.3, transition: 'opacity 0.2s', padding: '0.25rem', flexShrink: 0
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                      onMouseOut={(e) => e.currentTarget.style.opacity = '0.3'}
+                    >
+                      <FiTrash2 size={15} />
+                    </button>
+                    <FiChevronDown style={{ 
+                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', 
+                      transition: 'transform 0.25s ease',
+                      opacity: 0.4, fontSize: '1rem', flexShrink: 0
+                    }} />
+                  </div>
+                  </div>
                   
                   {isExpanded && (
-                    <div className="tx-content animate-fade-in" style={{ padding: '0 1.5rem 1.5rem' }}>
-                      <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.5rem' }}>
+                    <div className="tx-content animate-fade-in" style={{ padding: '0 1.25rem 1.5rem' }}>
+                      <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.25rem' }}>
                         <div className="tx-fields-grid">
                           <div>
                             <label className="field-label">Display Name</label>

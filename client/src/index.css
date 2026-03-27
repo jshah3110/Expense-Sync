@@ -338,14 +338,14 @@ h1, h2, h3, .nav-brand {
    ========================================== */
 
 @media (max-width: 640px) {
-  /* Full-bleed: no side padding on main container */
+  /* Mobile container — keep consistent side padding */
   .app-container {
-    padding: 0;
+    padding: 0 0 1.5rem 0;
     max-width: 100vw;
     overflow-x: hidden;
   }
 
-  /* Nav on mobile: already hidden (desktop only), but keep consistent if shown */
+  /* Nav on mobile */
   .nav-header {
     border-radius: 0;
     margin-bottom: 0;
@@ -355,70 +355,63 @@ h1, h2, h3, .nav-brand {
   .nav-brand { font-size: 1.2rem; }
 
   /* === PAGE HEADER SECTION === */
-  /* Overview title + subtitle: give breathing room */
-  h2 { font-size: 1.4rem !important; }
+  h2 { font-size: 1.35rem !important; }
 
-  /* === SYNC + FILTER BAR === */
-  .tx-controls-row {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0.75rem !important;
-  }
-  .tx-controls-row > div,
-  .tx-controls-row > button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* === TRANSACTION CARDS: full-bleed === */
+  /* === TRANSACTION CARDS: edge-to-edge === */
   .transaction-list {
     gap: 0;
     display: flex;
     flex-direction: column;
+    /* Negative margins punch out to screen edge from padded parent */
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
   }
 
   .transaction-item {
     padding: 0;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-top: none;
-    border-bottom: 1px solid var(--border-light);
-    background: transparent;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+    transform: none !important; /* disable hover lift */
   }
 
   .transaction-item:last-child {
-    border-bottom: none;
+    border-bottom: none !important;
   }
 
   .transaction-item.expanded {
-    background: hsla(250, 89%, 65%, 0.04);
-    border-bottom: 1px solid var(--primary-glow);
+    background: hsla(250, 89%, 65%, 0.03) !important;
+    border-bottom: 1px solid var(--primary-glow) !important;
   }
 
   .transaction-item:hover {
-    background: hsla(0, 0%, 100%, 0.03);
+    background: hsla(0, 0%, 100%, 0.025) !important;
+    transform: none !important;
   }
 
   /* Card header row */
   .tx-header {
-    padding: 1.1rem 1.25rem !important;
+    padding: 1rem 1.25rem !important;
   }
 
-  /* Merchant name: bigger and bolder on mobile */
+  /* Merchant name */
   .tx-name {
-    font-size: 1rem !important;
-    max-width: 58vw;
+    font-size: 0.95rem !important;
+    max-width: 55vw;
   }
+  .tx-amount { font-size: 1rem !important; font-weight: 700 !important; }
 
-  .tx-amount { font-size: 1.05rem !important; font-weight: 700 !important; }
-
-  /* Expanded card content area */
+  /* Expanded content */
   .tx-content {
     padding: 0 1.25rem 1.5rem !important;
   }
 
-  /* Fields: 2-col grid on mobile */
+  /* Fields grid */
   .tx-fields-grid {
     grid-template-columns: 1fr 1fr !important;
     gap: 0.75rem;
@@ -426,23 +419,21 @@ h1, h2, h3, .nav-brand {
 
   /* Glass cards (settings etc) */
   .glass-card {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
+    border-radius: var(--radius-lg) !important;
   }
   .glass-card > div:first-child {
     flex-direction: column;
     gap: 0.75rem;
   }
 
-  /* Inputs & selects: full touch targets */
+  /* Touch targets */
   .glass-input,
-  .glass-select,
-  .btn {
-    min-height: 48px;
+  .glass-select {
+    min-height: 44px;
   }
+  .btn { min-height: 44px; }
 
-  /* Push/action button row: full width stack */
+  /* Push button row */
   .push-btn-row {
     flex-direction: column !important;
     gap: 0.75rem !important;
@@ -456,21 +447,24 @@ h1, h2, h3, .nav-brand {
   .member-label { flex: 0 0 auto; }
   .mobile-full { width: 100%; }
 
-  /* Bottom Nav Bar */
+  /* Chip scrollbar hide */
+  .chip-row::-webkit-scrollbar { display: none; }
+
+  /* Bottom Nav */
   .mobile-nav-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
-    background: hsla(240, 10%, 5%, 0.92);
+    height: 62px;
+    background: hsla(240, 10%, 5%, 0.95);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-top: 1px solid var(--border-light);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 0.5rem;
+    padding: 0 0.25rem;
     z-index: 1000;
   }
 
@@ -481,25 +475,23 @@ h1, h2, h3, .nav-brand {
     gap: 3px;
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: var(--transition-smooth);
-    padding: 0.5rem 1rem;
-    border-radius: 12px;
+    padding: 0.4rem 0.9rem;
+    border-radius: 10px;
+    min-width: 56px;
   }
 
-  .mobile-nav-item svg { font-size: 1.3rem; }
+  .mobile-nav-item svg { font-size: 1.25rem; }
 
   .mobile-nav-item.active {
     color: var(--primary);
-    background: hsla(250, 89%, 65%, 0.1);
+    background: hsla(250, 89%, 65%, 0.12);
   }
 
-  /* Ensure content clears bottom nav */
-  body {
-    padding-bottom: 72px;
-  }
+  body { padding-bottom: 72px; }
 }
 
 /* Animate-fade-in for Settings */
