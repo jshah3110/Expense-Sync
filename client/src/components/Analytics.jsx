@@ -127,7 +127,12 @@ const Analytics = () => {
   } : summary;
 
   const displaySummary = spendView === 'splitwise' ? filteredSummary : summary;
-  const displayByCategory = by_category; // Categories already filtered by the backend based on month
+
+  // Bar chart: use synced amounts per month in Splitwise view
+  const displayByMonth = by_month.map((m) => ({
+    ...m,
+    displayTotal: spendView === 'splitwise' ? (m.synced ?? 0) : m.total,
+  }));
 
   // Month labels from backend so they're always in sync
   const targetLabel = monthLabel(summary.target_month);
@@ -138,12 +143,13 @@ const Analytics = () => {
   const deltaText      = delta >= 0 ? `${deltaFormatted} more` : `${deltaFormatted} less`;
 
   const historyAverage =
-    by_month.length > 0
-      ? by_month.reduce((acc, m) => acc + m.total, 0) / by_month.length
+    displayByMonth.length > 0
+      ? displayByMonth.reduce((acc, m) => acc + m.displayTotal, 0) / displayByMonth.length
       : 0;
 
   // Pacing has data if at least one non-null, non-zero value exists
-  const pacingHasData = pacing.some((p) => (p.this_month ?? 0) > 0 || (p.last_month ?? 0) > 0);
+  // Line chart only meaningful in 'all' view (no per-day synced data available)
+  const pacingHasData = spendView === 'all' && pacing.some((p) => (p.this_month ?? 0) > 0 || (p.last_month ?? 0) > 0);
 
   return (
     <div
@@ -301,10 +307,16 @@ const Analytics = () => {
 
       {/* ── MAIN CHART ─────────────────────────────────────────────────────── */}
       <div style={{ height: '300px', marginBottom: '2rem', marginLeft: '-1.5rem', marginRight: '-1rem' }}>
+        {viewMode === 'line' && !pacingHasData ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              {spendView === 'splitwise' ? 'Daily pacing not available in Splitwise view' : `No spending data for ${targetLabel}`}
+            </span>
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           {viewMode === 'line' ? (
-            pacingHasData ? (
-              <AreaChart data={pacing} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={pacing} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorThis" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor="var(--primary)" stopOpacity={0.3} />
@@ -337,16 +349,9 @@ const Analytics = () => {
                   strokeWidth={3} isAnimationActive={false} connectNulls
                 />
               </AreaChart>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                  No spending data for {targetLabel}
-                </span>
-              </div>
-            )
           ) : (
             <BarChart
-              data={by_month}
+              data={displayByMonth}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsla(0,0%,100%,0.05)" />
@@ -360,16 +365,16 @@ const Analytics = () => {
                 cursor={{ fill: 'hsla(0,0%,100%,0.02)' }}
                 contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
                 labelFormatter={monthLabel}
-                formatter={(val) => [fmt(val), 'Total']}
+                formatter={(val) => [fmt(val), spendView === 'splitwise' ? 'Splitwise' : 'Total']}
               />
               <Bar
-                dataKey="total"
+                dataKey="displayTotal"
                 maxBarSize={48}
                 isAnimationActive={false}
                 shape={<ColoredBar />}
                 onClick={(barData) => handleBarClick(barData)}
               >
-                {by_month.map((entry) => (
+                {displayByMonth.map((entry) => (
                   <Cell
                     key={entry.month}
                     fill={
@@ -383,6 +388,7 @@ const Analytics = () => {
             </BarChart>
           )}
         </ResponsiveContainer>
+        )}
       </div>
 
       {/* ── CHART LEGEND ───────────────────────────────────────────────────── */}
