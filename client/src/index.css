@@ -331,28 +331,7 @@ h1, h2, h3, .nav-brand {
   margin-top: 1rem;
 }
 
-.fab-container {
-  position: fixed;
-  bottom: 85px; /* Above the 70px mobile bottom navigation */
-  right: 20px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.fab-dropdown {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-  animation: fadeInUp 0.3s ease;
-}
+/* Responsive Constraints */
 
 /* ==========================================
    MOBILE RESPONSIVE - iPhone 13 Pro + (390px)

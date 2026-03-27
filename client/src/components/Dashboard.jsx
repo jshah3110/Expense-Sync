@@ -458,14 +458,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Mobile Floating Action Button (FAB) strictly rendered out-of-bounds on devices purely mapping to CSS bottom coordinates natively. */}
-      {isMobile && isConnected && (
-        <div className="fab-container">
-          <div style={{ display: 'flex', background: 'var(--bg-card)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-focus)', boxShadow: '0 8px 25px rgba(0,0,0,0.5)' }}>
-            {syncButtonContent}
-          </div>
-        </div>
-      )}
+      {/* Floating Action Button logic entirely eradicated per user explicit layout verification request natively. */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Overview</h2>
@@ -475,15 +468,25 @@ const Dashboard = () => {
         {/* Main Dashboard Tabs cleanly wrapping analytical interfaces instantly. */}
         {/* Dynamic Data Analytical Dashboards */}
         
-        {/* Mobile Drawer Trigger cleanly popping Filter configurations conditionally! */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-          <button 
-            className="btn" 
-            onClick={() => setShowFilters(!showFilters)}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', background: showFilters ? 'hsla(250, 89%, 65%, 0.1)' : 'hsla(0,0%,100%,0.05)', borderColor: showFilters ? 'var(--primary)' : 'var(--border-light)' }}
-          >
-             Filters & Analytics <FiChevronDown style={{ transform: showFilters ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s ease' }} />
-          </button>
+        {/* Mobile Controls Row natively stacking the Sync and Filter Dropdowns! */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch', flexWrap: 'wrap-reverse', gap: '0.75rem', marginBottom: '1rem' }}>
+          {isMobile && isConnected && (
+            <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)', flex: '1 1 100%' }}>
+              <div style={{ width: '100%' }}>
+                {syncButtonContent}
+              </div>
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', flexGrow: 1, justifyContent: 'flex-end', width: isMobile ? '100%' : 'auto' }}>
+            <button 
+              className="btn" 
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', width: isMobile ? '100%' : 'auto', justifyContent: 'center', background: showFilters ? 'hsla(250, 89%, 65%, 0.1)' : 'hsla(0,0%,100%,0.05)', borderColor: showFilters ? 'var(--primary)' : 'var(--border-light)' }}
+            >
+               Filters & Analytics <FiChevronDown style={{ transform: showFilters ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s ease' }} />
+            </button>
+          </div>
         </div>
 
         <div className={`filter-drawer ${showFilters ? 'expanded' : ''}`}>
