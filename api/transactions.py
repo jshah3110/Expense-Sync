@@ -436,6 +436,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
 
     daily_sums_target = {str(d).zfill(2): 0 for d in range(1, 32)}
     daily_sums_prev   = {str(d).zfill(2): 0 for d in range(1, 32)}
+    daily_synced_target = {str(d).zfill(2): 0 for d in range(1, 32)}
+    daily_synced_prev   = {str(d).zfill(2): 0 for d in range(1, 32)}
 
     for t in txs:
         amount  = t.amount
@@ -451,6 +453,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
                 summary["transaction_count"] += 1
                 if day_str in daily_sums_target:
                     daily_sums_target[day_str] += amount
+                if t.is_synced and day_str in daily_synced_target:
+                    daily_synced_target[day_str] += amount
                 # Category breakdown scoped to target month
                 if cat not in category_map:
                     category_map[cat] = {"category": cat, "total": 0, "count": 0}
@@ -464,6 +468,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
                 summary["total_last_month"] += amount
                 if day_str in daily_sums_prev:
                     daily_sums_prev[day_str] += amount
+                if t.is_synced and day_str in daily_synced_prev:
+                    daily_synced_prev[day_str] += amount
 
         # Monthly grouping for bar chart (always all-time)
         if t_month:
@@ -481,26 +487,40 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
         summary["unsynced_total"] = summary["total_this_month"] - summary["synced_total"]
         summary["unsynced_percentage"] = 100 - summary["synced_percentage"]
 
-    # Build cumulative pacing (target month vs previous month)
+    # Build cumulative pacing (target month vs previous month, with synced split)
     pacing_data = []
     cum_this = 0
     cum_last = 0
+    cum_synced_this = 0
+    cum_synced_last = 0
     max_day = max(target_last_day, days_in_prev)
 
     for d in range(1, max_day + 1):
         day_str = str(d).zfill(2)
 
         val_this = None
+        val_synced_this = None
         if d <= target_last_day:
             cum_this += daily_sums_target.get(day_str, 0)
+            cum_synced_this += daily_synced_target.get(day_str, 0)
             val_this = round(cum_this, 2)
+            val_synced_this = round(cum_synced_this, 2)
 
         val_last = None
+        val_synced_last = None
         if d <= days_in_prev:
             cum_last += daily_sums_prev.get(day_str, 0)
+            cum_synced_last += daily_synced_prev.get(day_str, 0)
             val_last = round(cum_last, 2)
+            val_synced_last = round(cum_synced_last, 2)
 
-        pacing_data.append({"day": day_str, "this_month": val_this, "last_month": val_last})
+        pacing_data.append({
+            "day": day_str,
+            "this_month": val_this,
+            "last_month": val_last,
+            "synced_this_month": val_synced_this,
+            "synced_last_month": val_synced_last,
+        })
 
     by_category = sorted(list(category_map.values()), key=lambda x: x['total'], reverse=True)
     by_month    = sorted(list(month_map.values()),    key=lambda x: x['month'])

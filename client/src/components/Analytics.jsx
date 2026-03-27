@@ -147,9 +147,15 @@ const Analytics = () => {
       ? displayByMonth.reduce((acc, m) => acc + m.displayTotal, 0) / displayByMonth.length
       : 0;
 
+  // Pacing data filtered by spend view
+  const displayPacing = pacing.map((p) => ({
+    day: p.day,
+    this_month: spendView === 'splitwise' ? p.synced_this_month : p.this_month,
+    last_month: spendView === 'splitwise' ? p.synced_last_month : p.last_month,
+  }));
+
   // Pacing has data if at least one non-null, non-zero value exists
-  // Line chart only meaningful in 'all' view (no per-day synced data available)
-  const pacingHasData = spendView === 'all' && pacing.some((p) => (p.this_month ?? 0) > 0 || (p.last_month ?? 0) > 0);
+  const pacingHasData = displayPacing.some((p) => (p.this_month ?? 0) > 0 || (p.last_month ?? 0) > 0);
 
   return (
     <div
@@ -310,13 +316,13 @@ const Analytics = () => {
         {viewMode === 'line' && !pacingHasData ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              {spendView === 'splitwise' ? 'Daily pacing not available in Splitwise view' : `No spending data for ${targetLabel}`}
+              {`No spending data for ${targetLabel}`}
             </span>
           </div>
         ) : (
         <ResponsiveContainer width="100%" height="100%">
           {viewMode === 'line' ? (
-            <AreaChart data={pacing} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={displayPacing} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorThis" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor="var(--primary)" stopOpacity={0.3} />
