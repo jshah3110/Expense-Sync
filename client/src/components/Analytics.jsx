@@ -172,7 +172,7 @@ const Analytics = () => {
 
         <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {viewMode === 'line' ? (
-            <div>
+            <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span style={{ color: delta >= 0 ? '#f59e0b' : '#10b981', fontWeight: 500 }}>{deltaText}</span>
               <span> than {prevLabel}</span>
             </div>
@@ -183,7 +183,7 @@ const Analytics = () => {
             </div>
           )}
           {summary.synced_total > 0 && (
-            <div style={{ marginTop: '0.25rem' }}>
+            <div style={{ marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span style={{ color: 'var(--splitwise)', fontWeight: 500 }}>{fmt(summary.synced_total)}</span>
               <span> pushed to Splitwise ({summary.synced_percentage}%)</span>
             </div>
@@ -332,7 +332,7 @@ const Analytics = () => {
                       paddingAngle={2} stroke="none"
                     >
                       {by_category.map((entry, i) => (
-                        <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                        <Cell key={`cell-${summary.target_month}-${i}`} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
                     <RechartsTooltip
@@ -365,7 +365,7 @@ const Analytics = () => {
                   : 0;
                 return (
                   <div
-                    key={cat.category}
+                    key={`${summary.target_month}-${cat.category}`}
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '1rem 0',
