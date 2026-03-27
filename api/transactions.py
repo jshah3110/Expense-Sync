@@ -322,6 +322,18 @@ def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db
     db.commit()
     return {"status": "success"}
 
+@router.patch("/{tx_id}/unmark_synced")
+def unmark_transaction_synced(tx_id: int, db: Session = Depends(get_db)):
+    """Revert a transaction's synced status (move back to backlog)."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    tx.is_synced = False
+    tx.splitwise_expense_id = None
+    db.commit()
+    return {"status": "success"}
+
 @router.patch("/{tx_id}/ignore")
 def ignore_transaction(tx_id: int, db: Session = Depends(get_db)):
     """Mark a transaction as ignored (others tab)."""

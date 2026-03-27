@@ -380,6 +380,21 @@ const Dashboard = () => {
     }
   };
 
+  const handleUnsynced = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await axios.patch(`${API_BASE}/api/transactions/${id}/unmark_synced`);
+      setTransactions(prev => prev.map(t => 
+        t.id === id ? { ...t, is_synced: false, splitwise_expense_id: null } : t
+      ));
+      setActiveTab('backlog');
+      setExpandedTxIds(prev => prev.filter(i => i !== id));
+    } catch (error) {
+      console.error("Error un-marking as synced", error);
+      alert("Failed to un-mark transaction.");
+    }
+  };
+
   const displayedTransactions = transactions.filter(t => {
     let isRightTab = false;
     if (activeTab === 'backlog') isRightTab = !t.is_synced && !t.is_ignored;
@@ -1201,7 +1216,7 @@ const Dashboard = () => {
                           ) : !tx.is_synced ? (
                             <button
                               className="btn-splitwise"
-                              onClick={(e) => { e.stopPropagation(); handlePush(tx); }}
+                              onClick={(e) => { e.stopPropagation(); handlePushToSplitwise(tx.id, tx); }}
                               disabled={!tx.selectedGroupId}
                               style={{
                                 flex: isMobile ? 'none' : 2,
