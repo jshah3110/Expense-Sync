@@ -39,6 +39,34 @@ const ColoredBar = (props) => {
   );
 };
 
+// ── Custom Pie label renderer ────────────────────────────────────────────────
+const renderPieLabel = (entry, total) => {
+  const pct = total > 0 ? ((entry.total / total) * 100).toFixed(0) : 0;
+  return `${entry.category} ${pct}%`;
+};
+
+// ── Custom Pie label component for styling ────────────────────────────────
+const PieLabel = (props) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+  const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor={x > cx ? 'start' : 'end'}
+      dominantBaseline="central"
+      fontSize="12"
+      fontWeight="600"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 const Analytics = () => {
   const [data, setData]               = useState(null);
   const [loading, setLoading]         = useState(true);
@@ -323,13 +351,15 @@ const Analytics = () => {
           <>
             {/* Donut */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
-              <div style={{ height: '220px', width: '100%', position: 'relative' }}>
+              <div style={{ height: '280px', width: '100%', position: 'relative', paddingTop: '1rem' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={by_category} dataKey="total" nameKey="category"
                       cx="50%" cy="50%" innerRadius="65%" outerRadius="100%"
                       paddingAngle={2} stroke="none"
+                      label={<PieLabel />}
+                      labelLine={false}
                     >
                       {by_category.map((entry, i) => (
                         <Cell key={`cell-${summary.target_month}-${i}`} fill={COLORS[i % COLORS.length]} />
