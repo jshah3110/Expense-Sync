@@ -471,8 +471,8 @@ h1, h2, h3, .nav-brand {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-top: 1px solid var(--border-light);
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
     align-items: center;
     padding-left: 0.25rem;
     padding-right: 0.25rem;
@@ -491,9 +491,10 @@ h1, h2, h3, .nav-brand {
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: var(--transition-smooth);
-    padding: 0.4rem 0.9rem;
+    padding: 0.4rem 0.6rem;
     border-radius: 10px;
     min-width: 56px;
+    justify-content: center;
   }
 
   .mobile-nav-item svg { font-size: 1.25rem; }

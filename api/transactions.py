@@ -387,6 +387,100 @@ def get_plaid_status(db: Session = Depends(get_db)):
     connected = len(connections) > 0
     return {"connected": connected, "connections": formatted}
 
+@router.get("/analytics")
+def get_analytics(db: Session = Depends(get_db)):
+    """Fetch aggregated analytics data for the dashboard"""
+    # Fetch all except ignored transactions
+    txs = db.query(Transaction).filter(Transaction.is_ignored == False).order_by(Transaction.date.asc()).all()
+    
+    today = datetime.datetime.now()
+    current_month = today.strftime('%Y-%m')
+    last_month_date = (today.replace(day=1) - datetime.timedelta(days=1))
+    last_month = last_month_date.strftime('%Y-%m')
+    
+    summary = {
+        "total_this_month": 0,
+        "total_last_month": 0,
+        "total_all_time": 0,
+        "avg_per_day_this_month": 0,
+        "transaction_count": len(txs),
+        "synced_count": 0,
+        "synced_total": 0
+    }
+    
+    category_map = {}
+    month_map = {}
+    merchant_map = {}
+    daily_spend = {}
+    
+    unique_days_this_month = set()
+
+    for t in txs:
+        amount = t.amount
+        t_month = t.date[:7] if t.date else ''
+        cat = t.category or "General"
+        merchant = t.name or "Unknown"
+
+        # Overall summary aggregation
+        summary["total_all_time"] += amount
+        if t_month == current_month:
+            summary["total_this_month"] += amount
+            unique_days_this_month.add(t.date)
+        elif t_month == last_month:
+            summary["total_last_month"] += amount
+            
+        if t.is_synced:
+            summary["synced_count"] += 1
+            summary["synced_total"] += amount
+
+        # Category grouping
+        if cat not in category_map:
+            category_map[cat] = {"category": cat, "total": 0, "count": 0}
+        category_map[cat]["total"] += amount
+        category_map[cat]["count"] += 1
+        
+        # Monthly grouping
+        if t_month:
+            if t_month not in month_map:
+                month_map[t_month] = {"month": t_month, "personal": 0, "synced": 0, "total": 0, "count": 0}
+            if t.is_synced:
+                month_map[t_month]["synced"] += amount
+            else:
+                month_map[t_month]["personal"] += amount
+            month_map[t_month]["total"] += amount
+            month_map[t_month]["count"] += 1
+            
+        # Merchant grouping
+        if merchant not in merchant_map:
+            merchant_map[merchant] = {"name": merchant, "total": 0, "count": 0}
+        merchant_map[merchant]["total"] += amount
+        merchant_map[merchant]["count"] += 1
+        
+        # Daily grouping (for line charts if needed)
+        if t.date:
+            if t.date not in daily_spend:
+                daily_spend[t.date] = {"date": t.date, "total": 0}
+            daily_spend[t.date]["total"] += amount
+
+    # Calculate average per day (using current day of month or active days)
+    days_passed = today.day
+    if days_passed > 0:
+        summary["avg_per_day_this_month"] = summary["total_this_month"] / days_passed
+
+    # Sort categories, months, merchants by total amounts/chronologically
+    by_category = sorted(list(category_map.values()), key=lambda x: x['total'], reverse=True)
+    by_month = sorted(list(month_map.values()), key=lambda x: x['month'])[-6:] # Last 6 months
+    top_merchants = sorted(list(merchant_map.values()), key=lambda x: x['total'], reverse=True)[:15] # Top 15
+    daily_data = sorted(list(daily_spend.values()), key=lambda x: x['date'])[-30:] # Last 30 days of activity
+
+    return {
+        "summary": summary,
+        "by_category": by_category,
+        "by_month": by_month,
+        "top_merchants": top_merchants,
+        "daily_spend": daily_data
+    }
+
 @router.get("/")
 def get_recorded_transactions(db: Session = Depends(get_db)):
     """Fetch all stored transactions from the local database"""

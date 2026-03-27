@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { FiHome, FiSettings, FiActivity } from 'react-icons/fi';
+import { FiHome, FiSettings, FiActivity, FiBarChart2 } from 'react-icons/fi';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
+import Analytics from './components/Analytics';
 
 const Navigation = () => {
   const location = useLocation();
@@ -26,22 +27,28 @@ const Navigation = () => {
             <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
               <FiHome /> Dashboard
             </Link>
-            <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}>
-              <FiSettings /> Connect API
+            <Link to="/analytics" className={`nav-link ${location.pathname === '/analytics' ? 'active' : ''}`}>
+              <FiBarChart2 /> Analytics
+            </Link>
+            <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`} style={{ marginLeft: 'auto', padding: '0.5rem', width: 'auto', background: 'transparent', border: 'none' }} title="Settings">
+              <FiSettings style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }} />
             </Link>
           </div>
         </nav>
       )}
 
       {isMobile && (
-        <nav className="mobile-nav-bar animate-fade-in">
+        <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr auto' }}>
           <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
             <FiHome />
             <span>Dashboard</span>
           </Link>
-          <Link to="/settings" className={`mobile-nav-item ${location.pathname === '/settings' ? 'active' : ''}`}>
-            <FiSettings />
-            <span>Settings</span>
+          <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
+            <FiBarChart2 />
+            <span>Analytics</span>
+          </Link>
+          <Link to="/settings" className={`mobile-nav-item ${location.pathname === '/settings' ? 'active' : ''}`} style={{ padding: '0.8rem 1rem' }}>
+            <FiSettings style={{ fontSize: '1.4rem' }} />
           </Link>
         </nav>
       )}
@@ -57,6 +64,7 @@ function App() {
         <main className="app-container">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
