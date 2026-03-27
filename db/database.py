@@ -32,6 +32,7 @@ class Transaction(Base):
     
     # App State
     is_synced = Column(Boolean, default=False)
+    is_ignored = Column(Boolean, default=False)
     splitwise_expense_id = Column(String, nullable=True)
     splitwise_group_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -69,6 +70,12 @@ except Exception:
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN sync_cursor VARCHAR"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN is_ignored BOOLEAN DEFAULT FALSE"))
 except Exception:
     pass
 

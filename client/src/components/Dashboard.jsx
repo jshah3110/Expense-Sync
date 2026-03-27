@@ -353,8 +353,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleIgnore = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await axios.patch(`${API_BASE}/api/transactions/${id}/ignore`);
+      setTransactions(prev => prev.map(t => 
+        t.id === id ? { ...t, is_ignored: true, is_synced: false } : t
+      ));
+      setExpandedTxIds(prev => prev.filter(i => i !== id));
+    } catch (error) {
+      alert("Failed to ignore transaction.");
+    }
+  };
+
+  const handleUnignore = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await axios.patch(`${API_BASE}/api/transactions/${id}/unignore`);
+      setTransactions(prev => prev.map(t => 
+        t.id === id ? { ...t, is_ignored: false, is_synced: false } : t
+      ));
+      setExpandedTxIds(prev => prev.filter(i => i !== id));
+      setActiveTab('backlog');
+    } catch (error) {
+      alert("Failed to restore transaction.");
+    }
+  };
+
   const displayedTransactions = transactions.filter(t => {
-    const isRightTab = activeTab === 'backlog' ? !t.is_synced : t.is_synced;
+    let isRightTab = false;
+    if (activeTab === 'backlog') isRightTab = !t.is_synced && !t.is_ignored;
+    else if (activeTab === 'pushed') isRightTab = t.is_synced && !t.is_ignored;
+    else if (activeTab === 'others') isRightTab = !!t.is_ignored;
+    
     if (!isRightTab) return false;
     
     const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
@@ -773,19 +804,23 @@ const Dashboard = () => {
       <div className="animate-up stagger-1">
         {/* Tab switcher */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-          {['backlog', 'pushed'].map(tab => {
+          {['backlog', 'others', 'pushed'].map(tab => {
             const count = transactions.filter(t => {
-              const isRightTab = tab === 'backlog' ? !t.is_synced : t.is_synced;
-              if (!isRightTab) return false;
+              if (tab === 'backlog') return !t.is_synced && !t.is_ignored;
+              if (tab === 'pushed') return t.is_synced && !t.is_ignored;
+              if (tab === 'others') return t.is_ignored;
+              return false;
+            }).filter(t => {
               const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
               if (dateFrom && txDate < dateFrom) return false;
               if (dateTo && txDate > dateTo) return false;
               return true;
             }).length;
+            
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
                 style={{
                   padding: '0.5rem 1.25rem',
                   borderRadius: '999px',
@@ -795,15 +830,15 @@ const Dashboard = () => {
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   background: activeTab === tab
-                    ? tab === 'pushed' ? 'hsla(150, 60%, 40%, 0.3)' : 'var(--primary)'
+                    ? tab === 'pushed' ? 'hsla(150, 60%, 40%, 0.3)' : tab === 'others' ? 'hsla(0, 0%, 100%, 0.15)' : 'var(--primary)'
                     : 'hsla(0,0%,100%,0.05)',
                   borderColor: activeTab === tab
-                    ? tab === 'pushed' ? 'hsla(150, 60%, 50%, 0.5)' : 'transparent'
+                    ? tab === 'pushed' ? 'hsla(150, 60%, 50%, 0.5)' : tab === 'others' ? 'hsla(0, 0%, 100%, 0.3)' : 'transparent'
                     : 'var(--border-light)',
                   color: 'var(--text-primary)',
                 }}
               >
-                {tab === 'backlog' ? '⏳ Backlog' : '✅ Pushed'} <span style={{ opacity: 0.7, marginLeft: '0.3rem' }}>({count})</span>
+                {tab === 'backlog' ? '⏳ Backlog' : tab === 'pushed' ? '✅ Pushed' : '👻 Others'} <span style={{ opacity: 0.7, marginLeft: '0.3rem' }}>({count})</span>
               </button>
             );
           })}
@@ -1114,22 +1149,44 @@ const Dashboard = () => {
                           </div>
                         )}
 
-                        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                           <button 
+                        <div className="push-btn-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                          <button 
                             className="btn" 
                             style={{ background: 'transparent', padding: '0.6rem 1rem' }}
                             onClick={() => toggleExpand(tx.id)}
                           >
                             Close
                           </button>
-                          <button 
-                            className="btn btn-splitwise" 
-                            style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
-                            onClick={() => handlePushToSplitwise(tx.id, tx)}
-                            disabled={!tx.selectedGroupId}
-                          >
-                            <FiArrowRight /> Push
-                          </button>
+                          
+                          {activeTab === 'others' ? (
+                            <button 
+                              className="btn" 
+                              style={{ background: 'hsla(0,0%,100%,0.1)', padding: '0 1.5rem', height: '40px', fontSize: '0.95rem' }} 
+                              onClick={(e) => handleUnignore(e, tx.id)}
+                            >
+                              Move to Backlog
+                            </button>
+                          ) : (
+                            <>
+                              {!tx.is_synced && (
+                                <button 
+                                  className="btn" 
+                                  style={{ background: 'hsla(0,0%,100%,0.05)', padding: '0 1.5rem', height: '40px', fontSize: '0.95rem', color: 'var(--text-muted)' }} 
+                                  onClick={(e) => handleIgnore(e, tx.id)}
+                                >
+                                  Ignore
+                                </button>
+                              )}
+                              <button 
+                                className="btn btn-splitwise" 
+                                style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
+                                onClick={() => handlePushToSplitwise(tx.id, tx)}
+                                disabled={!tx.selectedGroupId}
+                              >
+                                <FiArrowRight /> Push
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -322,6 +322,30 @@ def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db
     db.commit()
     return {"status": "success"}
 
+@router.patch("/{tx_id}/ignore")
+def ignore_transaction(tx_id: int, db: Session = Depends(get_db)):
+    """Mark a transaction as ignored (others tab)."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    tx.is_ignored = True
+    tx.is_synced = False
+    db.commit()
+    return {"status": "success"}
+
+@router.patch("/{tx_id}/unignore")
+def unignore_transaction(tx_id: int, db: Session = Depends(get_db)):
+    """Restore an ignored transaction to the backlog."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    tx.is_ignored = False
+    tx.is_synced = False
+    db.commit()
+    return {"status": "success"}
+
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
     """Check if Plaid is connected and migrate tokens gracefully"""
