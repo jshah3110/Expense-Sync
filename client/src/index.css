@@ -425,11 +425,12 @@ h1, h2, h3, .nav-brand {
     gap: 0.75rem;
   }
 
-  /* Glass cards (settings etc) */
+  /* Glass cards (settings only — do NOT apply to transaction items) */
   .glass-card {
     border-radius: var(--radius-lg) !important;
   }
-  .glass-card > div:first-child {
+  /* Settings cards stack their inner content vertically on mobile */
+  .settings-card > div:first-child {
     flex-direction: column;
     gap: 0.75rem;
   }

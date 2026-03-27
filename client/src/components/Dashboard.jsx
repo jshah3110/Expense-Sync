@@ -462,7 +462,17 @@ const Dashboard = () => {
   return (
     <div>
       {/* ─── FILTER BAR ─────────────────────────────────────────── */}
-      <div style={{ padding: '1.25rem 1.25rem 0', background: isMobile ? 'hsla(240,10%,6%,0.8)' : 'transparent', borderBottom: isMobile ? '1px solid var(--border-light)' : 'none', marginBottom: isMobile ? '0' : '1rem' }}>
+      <div style={{ 
+        padding: isMobile 
+          ? `calc(env(safe-area-inset-top, 0px) + 1rem) 1.25rem 0` 
+          : '0 0 0.5rem',
+        background: isMobile ? 'hsla(240,10%,5%,0.95)' : 'transparent',
+        borderBottom: isMobile ? '1px solid var(--border-light)' : 'none',
+        marginBottom: isMobile ? '0' : '1rem',
+        position: isMobile ? 'sticky' : 'static',
+        top: 0,
+        zIndex: 100,
+      }}>
 
         {/* Title row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem' }}>
@@ -523,28 +533,28 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Search + compact filters row */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.9rem', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 0 }}>
+        {/* Search + compact filters: 2-col grid on mobile to prevent truncation */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto auto', gap: '0.5rem', marginBottom: '0.9rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', gridColumn: isMobile ? 'span 2' : 'auto' }}>
             <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: '0.8rem', pointerEvents: 'none' }}>🔍</span>
             <input
               type="text"
               className="glass-input"
-              placeholder="Search..."
+              placeholder="Search merchants..."
               value={merchantFilter}
               onChange={(e) => setMerchantFilter(e.target.value)}
-              style={{ paddingLeft: '2.1rem', paddingTop: '0.45rem', paddingBottom: '0.45rem', minHeight: 'unset', fontSize: '0.84rem' }}
+              style={{ paddingLeft: '2.1rem', paddingTop: '0.45rem', paddingBottom: '0.45rem', minHeight: 'unset', fontSize: '0.84rem', width: '100%' }}
             />
           </div>
           <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}
-            style={{ flex: '0 1 120px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            style={{ padding: '0.45rem 1.5rem 0.45rem 0.7rem', fontSize: '0.78rem', minHeight: 'unset', width: '100%' }}>
             <option value="all">All banks</option>
             {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
               <option key={bank} value={bank}>{bank}</option>
             ))}
           </select>
           <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
-            style={{ flex: '0 1 120px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            style={{ padding: '0.45rem 1.5rem 0.45rem 0.7rem', fontSize: '0.78rem', minHeight: 'unset', width: '100%' }}>
             <option value="all">All categories</option>
             {Array.from(new Set(transactions.map(t => t.category).filter(Boolean))).sort().map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -552,7 +562,7 @@ const Dashboard = () => {
           </select>
           <select className="glass-select" value={`${sortConfig.key}-${sortConfig.direction}`}
             onChange={(e) => { const [key, direction] = e.target.value.split('-'); setSortConfig({ key, direction }); }}
-            style={{ flex: '0 1 100px', padding: '0.45rem 2rem 0.45rem 0.7rem', fontSize: '0.8rem', minHeight: 'unset' }}>
+            style={{ padding: '0.45rem 1.5rem 0.45rem 0.7rem', fontSize: '0.78rem', minHeight: 'unset', width: '100%', gridColumn: isMobile ? 'span 1' : 'auto' }}>
             <option value="date-desc">Newest</option>
             <option value="date-asc">Oldest</option>
             <option value="amount-desc">$ High↓</option>
@@ -757,50 +767,59 @@ const Dashboard = () => {
       )}
 
       <div className="animate-up stagger-1" style={{ padding: isMobile ? '0 1.25rem' : '0' }}>
-        {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', marginTop: '0.5rem' }}>
+        {/* Tab switcher — compact underline style on mobile */}
+        <div style={{ 
+          display: 'flex', gap: '0', marginBottom: '0', marginTop: '0.75rem',
+          borderBottom: '1px solid var(--border-light)'
+        }}>
           {['backlog', 'others', 'pushed'].map(tab => {
             const count = transactions.filter(t => {
               if (tab === 'backlog') return !t.is_synced && !t.is_ignored;
               if (tab === 'pushed') return t.is_synced && !t.is_ignored;
               if (tab === 'others') return t.is_ignored;
               return false;
-            }).filter(t => {
-              const txDate = t.displayDate || (t.date ? (t.date.includes('T') ? t.date.split('T')[0] : t.date) : '');
-              if (dateFrom && txDate < dateFrom) return false;
-              if (dateTo && txDate > dateTo) return false;
-              return true;
             }).length;
             
+            const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
                 onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
                 style={{
-                  padding: '0.5rem 1.25rem',
-                  borderRadius: '999px',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  border: '1px solid',
+                  flex: 1,
+                  padding: '0.7rem 0.5rem',
+                  borderRadius: 0,
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '0.82rem',
+                  border: 'none',
+                  borderBottom: isActive ? `2px solid ${
+                    tab === 'pushed' ? 'hsl(150, 60%, 50%)' : 
+                    tab === 'others' ? 'hsla(0,0%,100%,0.5)' : 
+                    'var(--primary)'
+                  }` : '2px solid transparent',
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  background: activeTab === tab
-                    ? tab === 'pushed' ? 'hsla(150, 60%, 40%, 0.3)' : tab === 'others' ? 'hsla(0, 0%, 100%, 0.15)' : 'var(--primary)'
-                    : 'hsla(0,0%,100%,0.05)',
-                  borderColor: activeTab === tab
-                    ? tab === 'pushed' ? 'hsla(150, 60%, 50%, 0.5)' : tab === 'others' ? 'hsla(0, 0%, 100%, 0.3)' : 'transparent'
-                    : 'var(--border-light)',
-                  color: 'var(--text-primary)',
+                  transition: 'all 0.18s',
+                  background: 'transparent',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                  marginBottom: '-1px',
                 }}
               >
-                {tab === 'backlog' ? '⏳ Backlog' : tab === 'pushed' ? '✅ Pushed' : '👻 Others'} <span style={{ opacity: 0.7, marginLeft: '0.3rem' }}>({count})</span>
+                {tab === 'backlog' ? 'Backlog' : tab === 'pushed' ? 'Pushed' : 'Others'}
+                <span style={{ 
+                  marginLeft: '0.35rem', 
+                  fontSize: '0.72rem',
+                  opacity: isActive ? 0.8 : 0.5,
+                  background: isActive ? 'hsla(0,0%,100%,0.1)' : 'transparent',
+                  padding: '1px 5px', borderRadius: '99px'
+                }}>({count})</span>
               </button>
             );
           })}
         </div>
 
-        {displayedTransactions.length > 0 && (
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', padding: '0 0.5rem' }}>
+        {/* Select all + bulk delete — hidden on mobile to reduce clutter */}
+        {displayedTransactions.length > 0 && !isMobile && (
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0' }}>
              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                <input 
                  type="checkbox" 
