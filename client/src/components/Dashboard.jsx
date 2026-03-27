@@ -985,200 +985,253 @@ const Dashboard = () => {
                   
                   {isExpanded && (
                     <div className="tx-content animate-fade-in" style={{ padding: '0 1.25rem 1.5rem' }}>
-                      <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.25rem' }}>
-                        <div className="tx-fields-grid">
+                      <div style={{ borderTop: '1px solid hsla(0,0%,100%,0.06)', paddingTop: '1rem' }}>
+
+                        {/* ── Edit fields: Name + Amount, then Date ── */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.6rem' }}>
                           <div>
-                            <label className="field-label">Display Name</label>
-                            <input 
-                              type="text" 
-                              className="glass-input" 
-                              value={tx.name} 
+                            <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Name</label>
+                            <input
+                              type="text"
+                              className="glass-input"
+                              style={{ minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem' }}
+                              value={tx.name}
                               onChange={(e) => handleTxChange(tx.id, 'name', e.target.value)}
                             />
                           </div>
                           <div>
-                            <label className="field-label">Amount ($)</label>
-                            <input 
-                              type="number" 
-                              className="glass-input" 
-                              value={tx.amount} 
+                            <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Amount</label>
+                            <input
+                              type="number"
+                              className="glass-input"
+                              style={{ minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem' }}
+                              value={tx.amount}
                               onChange={(e) => handleTxChange(tx.id, 'amount', parseFloat(e.target.value))}
                             />
                           </div>
-                          <div>
-                            <label className="field-label">Date</label>
-                            <input 
-                              type="date" 
-                              className="glass-input" 
-                              style={{ colorScheme: 'dark' }}
-                              value={tx.displayDate || (tx.date ? (tx.date.includes('T') ? tx.date.split('T')[0] : tx.date) : new Date().toISOString().split('T')[0])} 
-                              onChange={(e) => handleTxChange(tx.id, 'displayDate', e.target.value)}
-                            />
-                          </div>
+                        </div>
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Date</label>
+                          <input
+                            type="date"
+                            className="glass-input"
+                            style={{ colorScheme: 'dark', minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem', width: '100%' }}
+                            value={tx.displayDate || (tx.date ? (tx.date.includes('T') ? tx.date.split('T')[0] : tx.date) : new Date().toISOString().split('T')[0])}
+                            onChange={(e) => handleTxChange(tx.id, 'displayDate', e.target.value)}
+                          />
                         </div>
 
-                        {/* Quick action bar — always visible */}
-                        {activeTab !== 'others' && !tx.is_synced && (
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem', marginBottom: '0.25rem' }}>
-                            <button 
-                              className="btn" 
-                              style={{ background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }} 
-                              onClick={(e) => handleIgnore(e, tx.id)}
-                            >
-                              🚫 Not for Splitwise
-                            </button>
-                          </div>
-                        )}
+                        {/* ── Splitwise section ── */}
+                        {!tx.is_synced && (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.9rem' }}>
+                              <div style={{ flex: 1, height: '1px', background: 'hsla(0,0%,100%,0.07)' }} />
+                              <span style={{ fontSize: '0.65rem', fontWeight: 700, opacity: 0.35, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Splitwise</span>
+                              <div style={{ flex: 1, height: '1px', background: 'hsla(0,0%,100%,0.07)' }} />
+                            </div>
 
-                        <div className="tx-fields-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'flex-end', marginTop: '1.5rem' }}>
-                          <div>
-                            <label className="field-label">Splitwise Group</label>
-                            <select 
-                              className="glass-select"
-                              value={tx.selectedGroupId || ""}
-                              onChange={(e) => handleGroupSelect(tx.id, e.target.value)}
-                              style={{ borderColor: tx.confidence > 0.8 ? 'var(--primary)' : 'var(--border-light)' }}
-                            >
-                              <option value="" disabled>Select Group...</option>
-                              <optgroup label="Outstanding Balance">
-                                {groups.filter(g => g.isActive).map(g => (
-                                  <option key={g.id} value={g.id} style={{ color: g.balance > 0 ? '#10b981' : '#ef4444' }}>
-                                    {g.name} ({g.balance > 0 ? '+' : ''}{g.balance.toFixed(2)})
-                                  </option>
+                            {/* Not for Splitwise — full width, subtle */}
+                            {activeTab !== 'others' && (
+                              <button
+                                onClick={(e) => handleIgnore(e, tx.id)}
+                                style={{
+                                  width: '100%', marginBottom: '0.75rem',
+                                  padding: '0.55rem', borderRadius: '10px',
+                                  background: 'hsla(0,0%,100%,0.04)',
+                                  border: '1px solid hsla(0,0%,100%,0.1)',
+                                  color: 'var(--text-muted)', fontSize: '0.83rem',
+                                  fontWeight: 600, cursor: 'pointer', letterSpacing: '0.01em',
+                                }}
+                              >
+                                🚫 Not for Splitwise
+                              </button>
+                            )}
+
+                            {/* Group + Method */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                              <div>
+                                <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Group</label>
+                                <select
+                                  className="glass-select"
+                                  style={{ minHeight: 'unset', padding: '0.5rem 1.6rem 0.5rem 0.7rem', fontSize: '0.82rem', width: '100%', borderColor: tx.confidence > 0.8 ? 'var(--primary)' : 'var(--border-light)' }}
+                                  value={tx.selectedGroupId || ''}
+                                  onChange={(e) => handleGroupSelect(tx.id, e.target.value)}
+                                >
+                                  <option value="" disabled>Pick group…</option>
+                                  <optgroup label="Active">
+                                    {groups.filter(g => g.isActive).map(g => (
+                                      <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                  </optgroup>
+                                  {!showActiveOnly && (
+                                    <optgroup label="Others">
+                                      {groups.filter(g => !g.isActive).map(g => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Split</label>
+                                <select
+                                  className="glass-select"
+                                  style={{ minHeight: 'unset', padding: '0.5rem 1.6rem 0.5rem 0.7rem', fontSize: '0.82rem', width: '100%' }}
+                                  value={tx.splitMethod || 'equally'}
+                                  onChange={(e) => handleTxChange(tx.id, 'splitMethod', e.target.value)}
+                                >
+                                  <option value="equally">Equally</option>
+                                  <option value="share">By Share</option>
+                                  <option value="custom">Custom $</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Payer — full width */}
+                            <div style={{ marginBottom: tx.selectedGroupId ? '0.75rem' : '0' }}>
+                              <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>Who paid?</label>
+                              <select
+                                className="glass-select"
+                                style={{ minHeight: 'unset', padding: '0.5rem 1.6rem 0.5rem 0.7rem', fontSize: '0.82rem', width: '100%' }}
+                                value={tx.payerId || currentUserId || ''}
+                                onChange={(e) => handleTxChange(tx.id, 'payerId', e.target.value)}
+                              >
+                                {group?.members?.map(m => (
+                                  <option key={m.id} value={m.id}>{m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}</option>
                                 ))}
-                              </optgroup>
-                              {!showActiveOnly && (
-                                <optgroup label="Other Groups">
-                                  {groups.filter(g => !g.isActive).map(g => (
-                                    <option key={g.id} value={g.id}>{g.name}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="field-label">Split Method</label>
-                            <select 
-                              className="glass-select"
-                              value={tx.splitMethod || 'equally'}
-                              onChange={(e) => handleTxChange(tx.id, 'splitMethod', e.target.value)}
-                            >
-                              <option value="equally">Equally</option>
-                              <option value="share">By Share</option>
-                              <option value="custom">Custom Amounts</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="field-label">Who Paid?</label>
-                            <select 
-                              className="glass-select"
-                              value={tx.payerId || currentUserId || ""}
-                              onChange={(e) => handleTxChange(tx.id, 'payerId', e.target.value)}
-                            >
-                              {group?.members?.map(m => (
-                                <option key={m.id} value={m.id}>{m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}</option>
-                              ))}
-                              {!tx.selectedGroupId && <option disabled>Select a group first</option>}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Splitwise Member Selection Details */}
-                        {tx.selectedGroupId && (
-                          <div className="animate-fade-in" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)' }}>
-                            <div className="field-label" style={{ marginBottom: '1rem', color: 'var(--primary)', fontWeight: '600' }}>
-                              Who's Included in this split?
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                              {group?.members?.map(m => (
-                                <label key={m.id} className="member-label" style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  gap: '0.6rem', 
-                                  cursor: 'pointer', 
-                                  background: (tx.includedMembers || []).includes(m.id) ? 'hsla(250, 89%, 65%, 0.1)' : 'hsla(0,0%,100%,0.03)', 
-                                  padding: '0.6rem 1.1rem', 
-                                  borderRadius: '12px', 
-                                  border: (tx.includedMembers || []).includes(m.id) ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)', 
-                                  transition: 'var(--transition-smooth)' 
-                                }}>
-                                  <input 
-                                    type="checkbox" 
-                                    className="glass-checkbox"
-                                    checked={(tx.includedMembers || []).some(id => id.toString() === m.id.toString())}
-                                    onChange={(e) => {
-                                      const current = tx.includedMembers || [];
-                                      const next = e.target.checked 
-                                        ? [...current, m.id] 
-                                        : current.filter(id => id.toString() !== m.id.toString());
-                                      handleTxChange(tx.id, 'includedMembers', next);
-                                    }}
-                                  />
-                                  <span style={{ fontSize: '0.85rem', fontWeight: '500', color: (tx.includedMembers || []).some(id => id.toString() === m.id.toString()) ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                                    {m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}
-                                  </span>
-                                </label>
-                              ))}
+                                {!tx.selectedGroupId && <option disabled>Select a group first</option>}
+                              </select>
                             </div>
 
-                            {(tx.splitMethod === 'share' || tx.splitMethod === 'custom') && (
-                              <div className="animate-up" style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'hsla(0,0%,0%,0.15)', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
-                                <div className="field-label" style={{ marginBottom: '1rem' }}>
-                                  {tx.splitMethod === 'share' ? 'Specify Shares' : 'Exact Dollar Amounts'}
+                            {/* Members to include */}
+                            {tx.selectedGroupId && (
+                              <div className="animate-fade-in" style={{ marginBottom: '0.75rem' }}>
+                                <label style={{ fontSize: '0.65rem', fontWeight: 600, opacity: 0.45, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>Split with</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                  {group?.members?.map(m => {
+                                    const included = (tx.includedMembers || []).some(id => id.toString() === m.id.toString());
+                                    return (
+                                      <label key={m.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                        cursor: 'pointer', padding: '0.4rem 0.85rem', borderRadius: '999px',
+                                        background: included ? 'hsla(250, 89%, 65%, 0.15)' : 'hsla(0,0%,100%,0.05)',
+                                        border: included ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)',
+                                        fontSize: '0.82rem', fontWeight: 500,
+                                        color: included ? 'var(--text-primary)' : 'var(--text-muted)',
+                                        transition: 'all 0.18s',
+                                      }}>
+                                        <input
+                                          type="checkbox"
+                                          className="glass-checkbox"
+                                          checked={included}
+                                          onChange={(e) => {
+                                            const current = tx.includedMembers || [];
+                                            const next = e.target.checked
+                                              ? [...current, m.id]
+                                              : current.filter(id => id.toString() !== m.id.toString());
+                                            handleTxChange(tx.id, 'includedMembers', next);
+                                          }}
+                                          style={{ display: 'none' }}
+                                        />
+                                        {m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}
+                                      </label>
+                                    );
+                                  })}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
-                                  {group?.members?.filter(m => (tx.includedMembers || []).some(id => id.toString() === m.id.toString())).map(m => (
-                                    <div key={m.id}>
-                                      <label className="field-label" style={{ fontSize: '0.65rem' }}>{m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}</label>
-                                      <input 
-                                        type="number"
-                                        className="glass-input"
-                                        placeholder={tx.splitMethod === 'share' ? '1' : '0.00'}
-                                        value={tx.memberValues?.[m.id] || ''}
-                                        onChange={(e) => {
-                                          const newValues = { ...tx.memberValues, [m.id]: e.target.value };
-                                          handleTxChange(tx.id, 'memberValues', newValues);
-                                        }}
-                                        style={{ padding: '0.5rem' }}
-                                      />
+
+                                {(tx.splitMethod === 'share' || tx.splitMethod === 'custom') && (
+                                  <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: 'hsla(0,0%,0%,0.15)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                                    <div style={{ fontSize: '0.72rem', fontWeight: 600, opacity: 0.5, marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                      {tx.splitMethod === 'share' ? 'Shares' : 'Amounts ($)'}
                                     </div>
-                                  ))}
-                                </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.6rem' }}>
+                                      {group?.members?.filter(m => (tx.includedMembers || []).some(id => id.toString() === m.id.toString())).map(m => (
+                                        <div key={m.id}>
+                                          <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}</div>
+                                          <input
+                                            type="number"
+                                            className="glass-input"
+                                            placeholder={tx.splitMethod === 'share' ? '1' : '0.00'}
+                                            value={tx.memberValues?.[m.id] || ''}
+                                            onChange={(e) => handleTxChange(tx.id, 'memberValues', { ...tx.memberValues, [m.id]: e.target.value })}
+                                            style={{ padding: '0.4rem 0.5rem', minHeight: 'unset', fontSize: '0.82rem' }}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
-                          </div>
+                          </>
                         )}
 
-                        <div className="push-btn-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                          <button 
-                            className="btn" 
-                            style={{ background: 'transparent', padding: '0.6rem 1rem' }}
+                        {/* ── Action buttons ── */}
+                        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexDirection: isMobile ? 'column' : 'row' }}>
+                          <button
                             onClick={() => toggleExpand(tx.id)}
+                            style={{
+                              flex: isMobile ? 'none' : 1,
+                              padding: '0.7rem',
+                              borderRadius: '12px',
+                              background: 'hsla(0,0%,100%,0.05)',
+                              border: '1px solid hsla(0,0%,100%,0.1)',
+                              color: 'var(--text-muted)', fontSize: '0.9rem',
+                              fontWeight: 600, cursor: 'pointer',
+                            }}
                           >
                             Close
                           </button>
-                          
+
                           {activeTab === 'others' ? (
-                            <button 
-                              className="btn" 
-                              style={{ background: 'hsla(0,0%,100%,0.1)', padding: '0 1.5rem', height: '40px', fontSize: '0.95rem' }} 
+                            <button
                               onClick={(e) => handleUnignore(e, tx.id)}
+                              style={{
+                                flex: isMobile ? 'none' : 2,
+                                padding: '0.7rem',
+                                borderRadius: '12px',
+                                background: 'hsla(250,89%,65%,0.15)',
+                                border: '1px solid var(--primary-glow)',
+                                color: 'var(--text-primary)', fontSize: '0.9rem',
+                                fontWeight: 700, cursor: 'pointer',
+                              }}
                             >
                               ↩ Move to Backlog
                             </button>
-                          ) : (
-                            <button 
-                              className="btn btn-splitwise" 
-                              style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
-                              onClick={() => handlePushToSplitwise(tx.id, tx)}
+                          ) : !tx.is_synced ? (
+                            <button
+                              className="btn-splitwise"
+                              onClick={(e) => { e.stopPropagation(); handlePush(tx); }}
                               disabled={!tx.selectedGroupId}
+                              style={{
+                                flex: isMobile ? 'none' : 2,
+                                padding: '0.7rem',
+                                borderRadius: '12px',
+                                fontSize: '0.95rem', fontWeight: 700,
+                                cursor: tx.selectedGroupId ? 'pointer' : 'not-allowed',
+                                opacity: tx.selectedGroupId ? 1 : 0.4,
+                              }}
                             >
-                              <FiArrowRight /> Push
+                              → Push to Splitwise
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => handleUnsynced(e, tx.id)}
+                              style={{
+                                flex: isMobile ? 'none' : 2,
+                                padding: '0.7rem',
+                                borderRadius: '12px',
+                                background: 'hsla(0,80%,50%,0.1)',
+                                border: '1px solid hsla(0,80%,50%,0.3)',
+                                color: '#ef4444', fontSize: '0.9rem',
+                                fontWeight: 600, cursor: 'pointer',
+                              }}
+                            >
+                              ↩ Unsynced
                             </button>
                           )}
                         </div>
+
                       </div>
                     </div>
                   )}
