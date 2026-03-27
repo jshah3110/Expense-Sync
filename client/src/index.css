@@ -348,7 +348,7 @@ h1, h2, h3, .nav-brand {
 @media (max-width: 640px) {
   /* Mobile container — keep consistent side padding */
   .app-container {
-    padding: max(2.5rem, env(safe-area-inset-top)) 0 1.5rem 0;
+    padding: max(2.5rem, env(safe-area-inset-top)) 0 calc(90px + env(safe-area-inset-bottom, 0px)) 0;
     max-width: 100vw;
     overflow-x: hidden;
   }
@@ -504,9 +504,9 @@ h1, h2, h3, .nav-brand {
     background: hsla(250, 89%, 65%, 0.12);
   }
 
-  /* Body clears bottom nav + home indicator */
+  /* Handled by app-container padding now, keep body neutral */
   body {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0;
   }
 }
 

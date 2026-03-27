@@ -402,38 +402,44 @@ def get_analytics(db: Session = Depends(get_db)):
         "total_this_month": 0,
         "total_last_month": 0,
         "total_all_time": 0,
-        "avg_per_day_this_month": 0,
         "transaction_count": len(txs),
         "synced_count": 0,
-        "synced_total": 0
+        "synced_total": 0,
+        "synced_percentage": 0
     }
     
     category_map = {}
     month_map = {}
-    merchant_map = {}
-    daily_spend = {}
     
-    unique_days_this_month = set()
+    # Store raw daily sums
+    daily_sums_this_month = {str(d).zfill(2): 0 for d in range(1, 32)}
+    daily_sums_last_month = {str(d).zfill(2): 0 for d in range(1, 32)}
 
     for t in txs:
         amount = t.amount
         t_month = t.date[:7] if t.date else ''
         cat = t.category or "General"
-        merchant = t.name or "Unknown"
 
         # Overall summary aggregation
         summary["total_all_time"] += amount
-        if t_month == current_month:
-            summary["total_this_month"] += amount
-            unique_days_this_month.add(t.date)
-        elif t_month == last_month:
-            summary["total_last_month"] += amount
-            
-        if t.is_synced:
+        
+        # Pacing data
+        if t.date:
+            day_str = t.date[8:10]
+            if t_month == current_month:
+                summary["total_this_month"] += amount
+                if day_str in daily_sums_this_month:
+                    daily_sums_this_month[day_str] += amount
+            elif t_month == last_month:
+                summary["total_last_month"] += amount
+                if day_str in daily_sums_last_month:
+                    daily_sums_last_month[day_str] += amount
+
+        if t_month == current_month and t.is_synced:
             summary["synced_count"] += 1
             summary["synced_total"] += amount
 
-        # Category grouping
+        # Category grouping (All Time for now, could be scoped to current month if preferred later)
         if cat not in category_map:
             category_map[cat] = {"category": cat, "total": 0, "count": 0}
         category_map[cat]["total"] += amount
@@ -450,35 +456,49 @@ def get_analytics(db: Session = Depends(get_db)):
             month_map[t_month]["total"] += amount
             month_map[t_month]["count"] += 1
             
-        # Merchant grouping
-        if merchant not in merchant_map:
-            merchant_map[merchant] = {"name": merchant, "total": 0, "count": 0}
-        merchant_map[merchant]["total"] += amount
-        merchant_map[merchant]["count"] += 1
+    # Calculate percentage
+    if summary["total_this_month"] > 0:
+        summary["synced_percentage"] = round((summary["synced_total"] / summary["total_this_month"]) * 100)
+
+    # Build cumulative pacing arrays (carry forward logic)
+    pacing_data = []
+    cum_this = 0
+    cum_last = 0
+    
+    last_day_of_last_month = last_month_date.day
+    current_day = today.day
+
+    for d in range(1, 32):
+        day_str = str(d).zfill(2)
         
-        # Daily grouping (for line charts if needed)
-        if t.date:
-            if t.date not in daily_spend:
-                daily_spend[t.date] = {"date": t.date, "total": 0}
-            daily_spend[t.date]["total"] += amount
+        # Determine if we should plot this point
+        val_this = None
+        if d <= current_day:
+            cum_this += daily_sums_this_month[day_str]
+            val_this = round(cum_this, 2)
+            
+        val_last = None
+        if d <= last_day_of_last_month:
+            cum_last += daily_sums_last_month[day_str]
+            val_last = round(cum_last, 2)
+            
+        # Only add valid days (e.g. stop at 30 for April)
+        if d <= max(current_day, last_day_of_last_month):
+            pacing_data.append({
+                "day": day_str,
+                "this_month": val_this,
+                "last_month": val_last
+            })
 
-    # Calculate average per day (using current day of month or active days)
-    days_passed = today.day
-    if days_passed > 0:
-        summary["avg_per_day_this_month"] = summary["total_this_month"] / days_passed
-
-    # Sort categories, months, merchants by total amounts/chronologically
+    # Sort categories, months chronologically
     by_category = sorted(list(category_map.values()), key=lambda x: x['total'], reverse=True)
     by_month = sorted(list(month_map.values()), key=lambda x: x['month'])[-6:] # Last 6 months
-    top_merchants = sorted(list(merchant_map.values()), key=lambda x: x['total'], reverse=True)[:15] # Top 15
-    daily_data = sorted(list(daily_spend.values()), key=lambda x: x['date'])[-30:] # Last 30 days of activity
 
     return {
         "summary": summary,
         "by_category": by_category,
         "by_month": by_month,
-        "top_merchants": top_merchants,
-        "daily_spend": daily_data
+        "pacing": pacing_data
     }
 
 @router.get("/")
