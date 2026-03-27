@@ -1028,6 +1028,19 @@ const Dashboard = () => {
                           </div>
                         </div>
 
+                        {/* Quick action bar — always visible */}
+                        {activeTab !== 'others' && !tx.is_synced && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem', marginBottom: '0.25rem' }}>
+                            <button 
+                              className="btn" 
+                              style={{ background: 'hsla(0,0%,100%,0.05)', padding: '0.4rem 1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }} 
+                              onClick={(e) => handleIgnore(e, tx.id)}
+                            >
+                              🚫 Not for Splitwise
+                            </button>
+                          </div>
+                        )}
+
                         <div className="tx-fields-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'flex-end', marginTop: '1.5rem' }}>
                           <div>
                             <label className="field-label">Splitwise Group</label>
@@ -1164,28 +1177,17 @@ const Dashboard = () => {
                               style={{ background: 'hsla(0,0%,100%,0.1)', padding: '0 1.5rem', height: '40px', fontSize: '0.95rem' }} 
                               onClick={(e) => handleUnignore(e, tx.id)}
                             >
-                              Move to Backlog
+                              ↩ Move to Backlog
                             </button>
                           ) : (
-                            <>
-                              {!tx.is_synced && (
-                                <button 
-                                  className="btn" 
-                                  style={{ background: 'hsla(0,0%,100%,0.05)', padding: '0 1.5rem', height: '40px', fontSize: '0.95rem', color: 'var(--text-muted)' }} 
-                                  onClick={(e) => handleIgnore(e, tx.id)}
-                                >
-                                  Ignore
-                                </button>
-                              )}
-                              <button 
-                                className="btn btn-splitwise" 
-                                style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
-                                onClick={() => handlePushToSplitwise(tx.id, tx)}
-                                disabled={!tx.selectedGroupId}
-                              >
-                                <FiArrowRight /> Push
-                              </button>
-                            </>
+                            <button 
+                              className="btn btn-splitwise" 
+                              style={{ height: '40px', padding: '0 1.5rem', fontSize: '0.95rem' }} 
+                              onClick={() => handlePushToSplitwise(tx.id, tx)}
+                              disabled={!tx.selectedGroupId}
+                            >
+                              <FiArrowRight /> Push
+                            </button>
                           )}
                         </div>
                       </div>
