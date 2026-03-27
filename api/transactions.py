@@ -392,8 +392,8 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
     """Fetch aggregated analytics data for the dashboard. Accepts optional ?month=YYYY-MM to filter."""
     import calendar
 
-    # Fetch all except ignored transactions
-    txs = db.query(Transaction).filter(Transaction.is_ignored == False).order_by(Transaction.date.asc()).all()
+    # Fetch all transactions (both synced and not synced/"Others")
+    txs = db.query(Transaction).order_by(Transaction.date.asc()).all()
 
     today = datetime.datetime.now()
     current_month = today.strftime('%Y-%m')
