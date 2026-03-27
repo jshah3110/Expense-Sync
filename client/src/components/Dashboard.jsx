@@ -464,36 +464,46 @@ const Dashboard = () => {
       {/* ─── FILTER BAR ─────────────────────────────────────────── */}
       <div style={{ 
         padding: isMobile 
-          ? `calc(env(safe-area-inset-top, 0px) + 1rem) 1.25rem 0` 
+          ? `calc(env(safe-area-inset-top, 0px) + 0.85rem) 1.25rem 0` 
           : '0 0 0.5rem',
-        background: isMobile ? 'hsla(240,10%,5%,0.95)' : 'transparent',
+        background: isMobile ? 'hsla(240,10%,5%,0.98)' : 'transparent',
         borderBottom: isMobile ? '1px solid var(--border-light)' : 'none',
         marginBottom: isMobile ? '0' : '1rem',
-        position: isMobile ? 'sticky' : 'static',
-        top: 0,
-        zIndex: 100,
       }}>
 
-        {/* Title row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem' }}>
+        {/* Row 1: Title + Add button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.4rem', marginBottom: '0.1rem' }}>Transactions</h2>
-            <p className="subtitle" style={{ fontSize: '0.75rem', opacity: 0.45, margin: 0 }}>Tap a transaction to push to Splitwise</p>
+            <h2 style={{ fontSize: '1.35rem', marginBottom: '0.05rem', lineHeight: 1.1 }}>Transactions</h2>
+            <p className="subtitle" style={{ fontSize: '0.72rem', opacity: 0.4, margin: 0 }}>Tap to review &amp; push to Splitwise</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {isMobile && isConnected && (
-              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.05)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                {syncButtonContent}
-              </div>
-            )}
-            <button className="btn" style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', gap: '0.35rem', minHeight: isMobile ? '38px' : 'auto' }} onClick={() => setShowMockForm(!showMockForm)}>
-              {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
-            </button>
-          </div>
+          <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', gap: '0.3rem', minHeight: '34px', flexShrink: 0 }} onClick={() => setShowMockForm(!showMockForm)}>
+            {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
+          </button>
         </div>
 
-        {/* Date filter chips */}
-        <div className="chip-row" style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.75rem', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        {/* Row 2: Sync Now button (mobile only, full width) */}
+        {isMobile && isConnected && (
+          <div style={{ marginBottom: '0.85rem', display: 'flex', gap: '0.5rem' }}>
+            <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+              {syncButtonContent}
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Date filter chips — horizontally scrollable */}
+        <div 
+          className="chip-row" 
+          style={{ 
+            display: 'flex', gap: '0.4rem', 
+            overflowX: 'auto', 
+            paddingBottom: '0.75rem', 
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+            touchAction: 'pan-x',
+          }}
+        >
           {[
             { label: 'All time', value: 'all' },
             { label: '7 days', value: '7days' },
@@ -518,6 +528,8 @@ const Dashboard = () => {
                 borderColor: datePreset === value ? 'transparent' : 'var(--border-light)',
                 color: 'var(--text-primary)',
                 letterSpacing: '0.01em',
+                WebkitTapHighlightColor: 'transparent',
+                userSelect: 'none',
               }}
             >
               {label}
