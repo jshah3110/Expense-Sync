@@ -257,7 +257,7 @@ const Dashboard = () => {
       if (!group) throw new Error("Group not found");
 
       let payload = {
-        cost: tx.amount,
+        cost: tx.amount.toFixed(2),
         description: tx.name,
         group_id: tx.selectedGroupId,
         date: tx.displayDate || tx.date
@@ -270,47 +270,52 @@ const Dashboard = () => {
 
       if (includedMembers.length === 0) throw new Error("At least one member must be selected for the split");
 
+      // PRE-CALCULATE OWED SHARES TO FIX PENNY DRIFT
+      const owedSharesMap = {};
+      let totalAssigned = 0;
+      
       if (splitMethod === 'equally') {
-        const share = tx.amount / includedMembers.length;
-        payload.split_equally = false;
-        payload.users = group.members.map(m => ({
-          user_id: m.id,
-          paid_share: m.id.toString() === payerId.toString() ? tx.amount.toString() : "0.00",
-          owed_share: includedIds.includes(m.id) ? share.toFixed(2) : "0.00"
-        }));
-      } else if (splitMethod === 'share' || splitMethod === 'custom') {
-        payload.split_equally = false;
-        const memberValues = tx.memberValues || {};
+        const baseShare = Number((tx.amount / includedMembers.length).toFixed(2));
+        includedMembers.forEach(m => {
+          owedSharesMap[m.id] = baseShare;
+          totalAssigned += baseShare;
+        });
+      } else if (splitMethod === 'share') {
+        const totalShares = includedMembers.reduce((acc, m) => acc + (parseFloat(tx.memberValues?.[m.id]) || 0), 0);
+        if (totalShares === 0) throw new Error("Total shares cannot be zero");
         
-        if (splitMethod === 'share') {
-          const totalShares = includedMembers.reduce((acc, m) => acc + (parseFloat(memberValues[m.id]) || 0), 0);
-          if (totalShares === 0) throw new Error("Total shares for selected members cannot be zero");
-          
-          payload.users = group.members.map(m => {
-            const isIncluded = includedIds.includes(m.id);
-            const myShareCount = isIncluded ? (parseFloat(memberValues[m.id]) || 0) : 0;
-            const myOwedAmount = isIncluded ? (tx.amount * myShareCount) / totalShares : 0;
-            return {
-              user_id: m.id,
-              paid_share: m.id.toString() === payerId.toString() ? tx.amount.toString() : "0.00",
-              owed_share: myOwedAmount.toFixed(2)
-            };
-          });
-        } else {
-          payload.users = group.members.map(m => {
-            const isIncluded = includedIds.includes(m.id);
-            return {
-              user_id: m.id,
-              paid_share: m.id.toString() === payerId.toString() ? tx.amount.toString() : "0.00",
-              owed_share: isIncluded ? (parseFloat(memberValues[m.id]) || 0).toFixed(2) : "0.00"
-            };
-          });
-          
-          const totalOwed = payload.users.reduce((acc, u) => acc + parseFloat(u.owed_share), 0);
-          if (Math.abs(totalOwed - tx.amount) > 0.05) {
-            if (!confirm(`Total split ($${totalOwed.toFixed(2)}) doesn't match total amount ($${tx.amount.toFixed(2)}). Push anyway?`)) return;
-          }
-        }
+        includedMembers.forEach(m => {
+          const myShareCount = parseFloat(tx.memberValues?.[m.id]) || 0;
+          const baseShare = Number(((tx.amount * myShareCount) / totalShares).toFixed(2));
+          owedSharesMap[m.id] = baseShare;
+          totalAssigned += baseShare;
+        });
+      } else if (splitMethod === 'custom') {
+        includedMembers.forEach(m => {
+          const baseShare = Number(parseFloat(tx.memberValues?.[m.id]) || 0);
+          owedSharesMap[m.id] = baseShare;
+          totalAssigned += baseShare;
+        });
+      }
+      
+      const targetTotal = Number(tx.amount.toFixed(2));
+      const difference = Math.round((targetTotal - totalAssigned) * 100);
+      
+      // Assign any missing/extra pennies to the first active member securely
+      if (includedMembers.length > 0 && difference !== 0) {
+        owedSharesMap[includedMembers[0].id] = Number((owedSharesMap[includedMembers[0].id] + (difference / 100)).toFixed(2));
+      }
+
+      payload.split_equally = false;
+      payload.users = group.members.map(m => ({
+        user_id: m.id,
+        paid_share: m.id.toString() === payerId.toString() ? tx.amount.toFixed(2) : "0.00",
+        owed_share: includedIds.includes(m.id) ? (owedSharesMap[m.id] || 0).toFixed(2) : "0.00"
+      }));
+
+      const finalTotalOwed = payload.users.reduce((acc, u) => acc + parseFloat(u.owed_share), 0);
+      if (splitMethod === 'custom' && Math.abs(finalTotalOwed - tx.amount) > 0.05) {
+        if (!confirm(`Total custom split ($${finalTotalOwed.toFixed(2)}) doesn't match total amount ($${tx.amount.toFixed(2)}). Push anyway (Splitwise may reject this)?`)) return;
       }
       
       const result = await axios.post(`${API_BASE}/api/splitwise/expense`, payload);
