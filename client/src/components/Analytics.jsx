@@ -72,6 +72,7 @@ const Analytics = () => {
   const [loading, setLoading]         = useState(true);
   const [viewMode, setViewMode]       = useState('bar');       // 'bar' | 'line'
   const [selectedMonth, setSelectedMonth] = useState(null);   // null = current month
+  const [spendView, setSpendView]     = useState('splitwise'); // 'splitwise' | 'all'
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {
@@ -116,11 +117,23 @@ const Analytics = () => {
 
   const { summary, by_category, by_month, pacing } = data;
 
+  // Filter data based on spend view (Splitwise only vs All)
+  const filteredSummary = spendView === 'splitwise' ? {
+    ...summary,
+    total_this_month: summary.synced_total,
+    total_last_month: 0, // Splitwise-only comparison not available
+    synced_percentage: 100,
+    unsynced_percentage: 0,
+  } : summary;
+
+  const displaySummary = spendView === 'splitwise' ? filteredSummary : summary;
+  const displayByCategory = by_category; // Categories already filtered by the backend based on month
+
   // Month labels from backend so they're always in sync
   const targetLabel = monthLabel(summary.target_month);
   const prevLabel   = monthLabel(summary.prev_month);
 
-  const delta          = summary.total_this_month - summary.total_last_month;
+  const delta          = displaySummary.total_this_month - displaySummary.total_last_month;
   const deltaFormatted = fmt(Math.abs(delta));
   const deltaText      = delta >= 0 ? `${deltaFormatted} more` : `${deltaFormatted} less`;
 
@@ -159,7 +172,34 @@ const Analytics = () => {
             </button>
           )}
 
-          {/* View toggle */}
+          {/* Spend view toggle */}
+          <div style={{
+            display: 'flex', background: 'hsla(0,0%,100%,0.05)',
+            borderRadius: '50px', padding: '0.2rem',
+            border: '1px solid var(--border-light)',
+            fontSize: '0.75rem',
+          }}>
+            {[
+              { view: 'splitwise', label: 'Splitwise' },
+              { view: 'all', label: 'All' },
+            ].map(({ view, label }) => (
+              <button
+                key={view}
+                onClick={() => setSpendView(view)}
+                style={{
+                  background: spendView === view ? 'hsla(0,0%,100%,0.1)' : 'transparent',
+                  color: spendView === view ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: 'none', borderRadius: '50px', padding: '0.35rem 0.7rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', transition: 'all 0.2s', fontWeight: 500,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* View mode toggle */}
           <div style={{
             display: 'flex', background: 'hsla(0,0%,100%,0.05)',
             borderRadius: '50px', padding: '0.2rem',
@@ -191,7 +231,7 @@ const Analytics = () => {
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.03em' }}>
-            {fmt(summary.total_this_month)}
+            {fmt(displaySummary.total_this_month)}
           </span>
           <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>
             {targetLabel}
@@ -199,7 +239,7 @@ const Analytics = () => {
         </div>
 
         <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {viewMode === 'line' ? (
+          {viewMode === 'line' && spendView === 'all' ? (
             <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span style={{ color: delta >= 0 ? '#f59e0b' : '#10b981', fontWeight: 500 }}>{deltaText}</span>
               <span> than {prevLabel}</span>
@@ -207,10 +247,10 @@ const Analytics = () => {
           ) : (
             <div>
               <span style={{ color: '#f59e0b', fontWeight: 500 }}>{fmt(historyAverage)}</span>
-              <span> average monthly expenses</span>
+              <span> average {spendView === 'splitwise' ? 'Splitwise' : 'monthly'} expenses</span>
             </div>
           )}
-          {summary.synced_total > 0 && (
+          {spendView === 'all' && summary.synced_total > 0 && (
             <div style={{ marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span style={{ color: 'var(--splitwise)', fontWeight: 500 }}>{fmt(summary.synced_total)}</span>
               <span> pushed to Splitwise ({summary.synced_percentage}%)</span>
@@ -218,8 +258,8 @@ const Analytics = () => {
           )}
         </div>
 
-        {/* Spend Breakdown Bar */}
-        {summary.total_this_month > 0 && (
+        {/* Spend Breakdown Bar - only show in 'all' mode */}
+        {spendView === 'all' && summary.total_this_month > 0 && (
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ display: 'flex', height: '24px', gap: '2px', borderRadius: '4px', overflow: 'hidden', background: 'hsla(0,0%,100%,0.05)' }}>
               <div style={{
@@ -350,24 +390,24 @@ const Analytics = () => {
         display: 'flex', flexDirection: 'column', gap: '1rem',
         paddingBottom: '2.5rem', borderBottom: '1px solid var(--border-light)', marginBottom: '2.5rem',
       }}>
-        {viewMode === 'line' ? (
+        {viewMode === 'line' && spendView === 'all' ? (
           <>
             <LegendRow
               dot={{ background: 'var(--primary)' }}
               label={targetLabel}
-              value={fmt(summary.total_this_month)}
+              value={fmt(displaySummary.total_this_month)}
             />
             <LegendRow
               dot={{ border: '2px dashed #888' }}
               label={prevLabel}
-              value={fmt(summary.total_last_month)}
+              value={fmt(displaySummary.total_last_month)}
             />
           </>
         ) : (
           <LegendRow
             dot={{ background: 'var(--primary)' }}
-            label={selectedMonth ? `${targetLabel} total` : 'Expenses'}
-            value={fmt(summary.total_this_month)}
+            label={selectedMonth ? `${targetLabel} total` : spendView === 'splitwise' ? 'Splitwise' : 'Expenses'}
+            value={fmt(displaySummary.total_this_month)}
           />
         )}
       </div>
@@ -421,7 +461,7 @@ const Analytics = () => {
                     {monthShort(summary.target_month)}
                   </div>
                   <div style={{ fontSize: '1.2rem', fontWeight: '700' }}>
-                    {fmt(summary.total_this_month)}
+                    {fmt(displaySummary.total_this_month)}
                   </div>
                 </div>
               </div>
@@ -430,8 +470,8 @@ const Analytics = () => {
             {/* Category list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {by_category.map((cat, i) => {
-                const pct = summary.total_this_month > 0
-                  ? (cat.total / summary.total_this_month) * 100
+                const pct = displaySummary.total_this_month > 0
+                  ? (cat.total / displaySummary.total_this_month) * 100
                   : 0;
                 return (
                   <div
