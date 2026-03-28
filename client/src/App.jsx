@@ -77,7 +77,7 @@ function App() {
 
   return (
     <Router>
-      <div style={{ minHeight: '100vh', minHeight: '-webkit-fill-available', paddingTop: isMobile ? '3rem' : 0 }}>
+      <div style={{ minHeight: '100vh', minHeight: '-webkit-fill-available' }}>
         <Navigation isMobile={isMobile} />
         <main className="app-container">
           <Routes>
