@@ -74,6 +74,8 @@ function App() {
   const [analyticsViewMode, setAnalyticsViewMode] = React.useState('bar');
   const [analyticsSpendView, setAnalyticsSpendView] = React.useState('splitwise');
   const [analyticsSelectedMonth, setAnalyticsSelectedMonth] = React.useState(null);
+  const [analyticsData, setAnalyticsData] = React.useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = React.useState(true);
 
   return (
     <Router>
@@ -90,6 +92,10 @@ function App() {
                 setSpendView={setAnalyticsSpendView}
                 selectedMonth={analyticsSelectedMonth}
                 setSelectedMonth={setAnalyticsSelectedMonth}
+                data={analyticsData}
+                setData={setAnalyticsData}
+                loading={analyticsLoading}
+                setLoading={setAnalyticsLoading}
                 theme={theme}
               />
             } />

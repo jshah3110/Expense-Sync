@@ -68,9 +68,8 @@ const PieLabel = (props) => {
   );
 };
 
-const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth, theme = 'dark' }) => {
-  const [data, setData]   = useState(null);
-  const [loading, setLoading] = useState(true);
+const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth, data, setData, loading, setLoading, theme = 'dark' }) => {
+  const [isFetching, setIsFetching] = useState(false);
   const isMobile = window.innerWidth <= 640;
   const isDark = theme === 'dark';
 
@@ -83,7 +82,10 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {
-    setLoading(true);
+    // First load (no cached data): show full loading screen
+    // Month change (data exists): show subtle fetching indicator only
+    if (!data) setLoading(true);
+    else setIsFetching(true);
     try {
       const url = `${API_BASE}/api/transactions/analytics${month ? `?month=${month}` : ''}`;
       const res = await axios.get(url);
@@ -92,12 +94,13 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
       console.error('Failed to fetch analytics', e);
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
-  }, []);
+  }, [data, setLoading, setData]);
 
   useEffect(() => {
     fetchAnalytics(selectedMonth);
-  }, [selectedMonth, fetchAnalytics]);
+  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bar click handler ─────────────────────────────────────────────────────
   const handleBarClick = (barData) => {
@@ -167,7 +170,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
   return (
     <div
       className="animate-fade-in stagger-1"
-      style={{ paddingBottom: '7rem', paddingTop: '1rem', paddingLeft: '1.25rem', paddingRight: '1.25rem' }}
+      style={{ paddingBottom: '7rem', paddingTop: '0', paddingLeft: '1.25rem', paddingRight: '1.25rem' }}
     >
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -254,12 +257,15 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
       {/* ── METRIC SUMMARY ─────────────────────────────────────────────────── */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.03em' }}>
+          <span style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.03em', opacity: isFetching ? 0.5 : 1, transition: 'opacity 0.2s' }}>
             {fmt(displaySummary.total_this_month)}
           </span>
           <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>
             {targetLabel}
           </span>
+          {isFetching && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>updating…</span>
+          )}
         </div>
 
         <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

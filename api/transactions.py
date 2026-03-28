@@ -14,6 +14,7 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
+from plaid.model.item_remove_request import ItemRemoveRequest
 
 from db.database import get_db, UserModel, Transaction, BankConnection
 
@@ -111,6 +112,21 @@ def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db))
         return {"status": "success"}
     except plaid.ApiException as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/connections/{connection_id}")
+def delete_connection(connection_id: int, db: Session = Depends(get_db)):
+    """Remove a Plaid bank connection and its associated transactions."""
+    conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    try:
+        client.item_remove(ItemRemoveRequest(access_token=conn.access_token))
+    except Exception:
+        pass  # If Plaid revocation fails, still clean up locally
+    db.query(Transaction).filter(Transaction.bank_name == conn.institution_name).delete(synchronize_session=False)
+    db.delete(conn)
+    db.commit()
+    return {"status": "deleted"}
 
 @router.get("/sync")
 def sync_transactions(days: str = '30', db: Session = Depends(get_db)):

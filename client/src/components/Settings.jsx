@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiCheckCircle, FiLink2, FiAlertCircle, FiSun, FiMoon } from 'react-icons/fi';
+import { FiCheckCircle, FiLink2, FiAlertCircle, FiSun, FiMoon, FiTrash2 } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { usePlaidLink } from 'react-plaid-link';
@@ -64,6 +64,16 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
 
   const handleConnectSplitwise = () => {
     window.location.href = `${API_BASE}/api/splitwise/connect`;
+  };
+
+  const handleDeleteConnection = async (id) => {
+    try {
+      await axios.delete(`${API_BASE}/api/transactions/connections/${id}`);
+      await fetchStatus();
+    } catch (e) {
+      console.error("Failed to delete connection", e);
+      alert("Failed to remove bank connection.");
+    }
   };
 
   const onSuccess = async (public_token, metadata) => {
@@ -180,13 +190,33 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
           </div>
 
           {plaidConnections.length > 0 && (
-            <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {plaidConnections.map(c => (
-                 <div key={c.id} style={{ background: 'var(--surface-overlay)', border: '1px solid var(--border-light)', padding: '0.5rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem' }}>🏦</span> 
+                <div key={c.id} style={{
+                  background: 'var(--surface-overlay)', border: '1px solid var(--border-light)',
+                  padding: '0.6rem 0.9rem', borderRadius: '10px', fontSize: '0.85rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>🏦</span>
                     <span style={{ fontWeight: 600 }}>{c.institution_name}</span>
-                    <FiCheckCircle style={{ color: '#10b981', marginLeft: '0.2rem' }} />
-                 </div>
+                    <FiCheckCircle style={{ color: '#10b981' }} />
+                  </div>
+                  <button
+                    onClick={() => handleDeleteConnection(c.id)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text-muted)', padding: '0.2rem 0.4rem',
+                      display: 'flex', alignItems: 'center', borderRadius: '6px',
+                      transition: 'color 0.2s, background 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'hsla(0,100%,60%,0.08)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; }}
+                    title="Remove connection"
+                  >
+                    <FiTrash2 size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
