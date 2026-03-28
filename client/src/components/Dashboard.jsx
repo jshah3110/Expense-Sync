@@ -336,8 +336,8 @@ const Dashboard = ({ theme = 'dark' }) => {
       });
       
       // Update local state — mark synced instead of removing
-      setTransactions(prev => prev.map(t => 
-        t.id === id ? { ...t, is_synced: true, splitwise_expense_id: splitwiseId } : t
+      setTransactions(prev => prev.map(t =>
+        t.id === id ? { ...t, is_synced: true, is_ignored: false, splitwise_expense_id: splitwiseId } : t
       ));
       setExpandedTxIds(prev => prev.filter(i => i !== id));
       setActiveTab('pushed');
@@ -1223,20 +1223,39 @@ const Dashboard = ({ theme = 'dark' }) => {
                           </button>
 
                           {activeTab === 'others' ? (
-                            <button
-                              onClick={(e) => handleUnignore(e, tx.id)}
-                              style={{
-                                flex: isMobile ? 'none' : 2,
-                                padding: '0.7rem',
-                                borderRadius: '12px',
-                                background: 'hsla(250,89%,65%,0.15)',
-                                border: '1px solid var(--primary-glow)',
-                                color: 'var(--text-primary)', fontSize: '0.9rem',
-                                fontWeight: 700, cursor: 'pointer',
-                              }}
-                            >
-                              ↩ Move to Backlog
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => handleUnignore(e, tx.id)}
+                                style={{
+                                  flex: isMobile ? 'none' : 1,
+                                  padding: '0.7rem',
+                                  borderRadius: '12px',
+                                  background: 'hsla(250,89%,65%,0.1)',
+                                  border: '1px solid var(--primary-glow)',
+                                  color: 'var(--text-secondary)', fontSize: '0.9rem',
+                                  fontWeight: 600, cursor: 'pointer',
+                                }}
+                              >
+                                ↩ Move to Backlog
+                              </button>
+                              {!tx.is_synced && (
+                                <button
+                                  className="btn-splitwise"
+                                  onClick={(e) => { e.stopPropagation(); handlePushToSplitwise(tx.id, tx); }}
+                                  disabled={!tx.selectedGroupId}
+                                  style={{
+                                    flex: isMobile ? 'none' : 2,
+                                    padding: '0.7rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.95rem', fontWeight: 700,
+                                    cursor: tx.selectedGroupId ? 'pointer' : 'not-allowed',
+                                    opacity: tx.selectedGroupId ? 1 : 0.4,
+                                  }}
+                                >
+                                  → Push to Splitwise
+                                </button>
+                              )}
+                            </>
                           ) : !tx.is_synced ? (
                             <button
                               className="btn-splitwise"

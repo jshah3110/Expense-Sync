@@ -344,6 +344,7 @@ def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Transaction not found")
     
     tx.is_synced = True
+    tx.is_ignored = False
     tx.splitwise_expense_id = data.get("splitwise_expense_id")
     tx.splitwise_group_id = str(data.get("group_id", ""))
     db.commit()
