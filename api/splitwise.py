@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import os
 import requests
 from urllib.parse import urlencode
-from db.database import get_db, UserModel
+from db.database import get_db, UserModel, Transaction as TransactionModel
 
 router = APIRouter()
 
@@ -104,6 +104,126 @@ def get_current_user(db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Failed to fetch user profile")
         
     return response.json()
+
+@router.get("/reconcile")
+def get_reconcile_suggestions(db: Session = Depends(get_db)):
+    """Match unsynced local transactions against Splitwise expenses by amount + date proximity."""
+    import datetime as dt
+    token = get_splitwise_token(db)
+    if not token:
+        raise HTTPException(status_code=401, detail="Splitwise not connected")
+
+    unsynced = db.query(TransactionModel).filter(
+        TransactionModel.is_synced == False,
+        TransactionModel.is_ignored == False,
+    ).all()
+
+    if not unsynced:
+        return {"confident": [], "ambiguous": [], "total_checked": 0}
+
+    # Fetch Splitwise expenses for the last 6 months (paginated)
+    dated_after = (dt.datetime.now() - dt.timedelta(days=180)).strftime("%Y-%m-%dT00:00:00Z")
+    headers = {"Authorization": f"Bearer {token}"}
+    all_expenses = []
+    offset = 0
+    limit = 100
+    while True:
+        resp = requests.get(
+            f"{API_BASE}/get_expenses",
+            headers=headers,
+            params={"dated_after": dated_after, "limit": limit, "offset": offset},
+        )
+        if resp.status_code != 200:
+            break
+        expenses = resp.json().get("expenses", [])
+        if not expenses:
+            break
+        # Skip deleted or payment/settlement entries
+        all_expenses.extend([
+            e for e in expenses
+            if not e.get("deleted_at") and not e.get("payment")
+        ])
+        if len(expenses) < limit:
+            break
+        offset += limit
+
+    # Parse into lightweight dicts
+    def parse_exp(e):
+        try:
+            return {
+                "id": str(e["id"]),
+                "description": e.get("description", ""),
+                "cost": round(float(e.get("cost", "0")), 2),
+                "date": (e.get("date") or "")[:10],
+                "group_id": e.get("group_id"),
+            }
+        except Exception:
+            return None
+
+    parsed = [p for p in (parse_exp(e) for e in all_expenses) if p]
+
+    confident = []
+    ambiguous = []
+    used_exp_ids = set()  # prevent same Splitwise expense matching multiple txns
+
+    for tx in unsynced:
+        try:
+            tx_amount = round(tx.amount, 2)
+            tx_date = dt.datetime.strptime((tx.date or "")[:10], "%Y-%m-%d").date()
+        except ValueError:
+            continue
+
+        matches = []
+        for exp in parsed:
+            if abs(exp["cost"] - tx_amount) < 0.01:
+                try:
+                    exp_date = dt.datetime.strptime(exp["date"], "%Y-%m-%d").date()
+                    if abs((exp_date - tx_date).days) <= 3:
+                        matches.append(exp)
+                except ValueError:
+                    pass
+
+        if not matches:
+            continue
+
+        tx_info = {
+            "tx_id": tx.id,
+            "tx_name": tx.name,
+            "tx_amount": tx_amount,
+            "tx_date": (tx.date or "")[:10],
+        }
+
+        if len(matches) == 1 and matches[0]["id"] not in used_exp_ids:
+            used_exp_ids.add(matches[0]["id"])
+            confident.append({
+                **tx_info,
+                "splitwise_expense_id": matches[0]["id"],
+                "splitwise_description": matches[0]["description"],
+                "splitwise_date": matches[0]["date"],
+            })
+        else:
+            # Filter out already-claimed expenses
+            available = [m for m in matches if m["id"] not in used_exp_ids]
+            ambiguous.append({**tx_info, "matches": available if available else matches})
+
+    return {"confident": confident, "ambiguous": ambiguous, "total_checked": len(unsynced)}
+
+
+@router.post("/reconcile/apply")
+def apply_reconcile(data: dict, db: Session = Depends(get_db)):
+    """Mark a list of {tx_id, splitwise_expense_id} pairs as synced."""
+    matches = data.get("matches", [])
+    applied = 0
+    for m in matches:
+        tx = db.query(TransactionModel).filter(TransactionModel.id == m["tx_id"]).first()
+        if tx:
+            tx.is_synced = True
+            tx.is_ignored = False
+            tx.splitwise_expense_id = str(m["splitwise_expense_id"]) if m.get("splitwise_expense_id") else None
+            applied += 1
+    db.commit()
+    return {"status": "success", "applied": applied}
+
 
 @router.post("/expense")
 def add_expense(expense_data: dict, db: Session = Depends(get_db)):

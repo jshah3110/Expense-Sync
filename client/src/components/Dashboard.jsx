@@ -65,6 +65,12 @@ const Dashboard = ({ theme = 'dark' }) => {
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [showMockForm, setShowMockForm] = useState(false);
   const [activeTab, setActiveTab] = useState('backlog'); // 'backlog' | 'pushed'
+
+  // ── Reconcile state ────────────────────────────────────────────────────────
+  const [showReconcile, setShowReconcile] = useState(false);
+  const [reconcileLoading, setReconcileLoading] = useState(false);
+  const [reconcileData, setReconcileData] = useState(null);
+  const [reconcileSelections, setReconcileSelections] = useState({});
   const [mockForm, setMockForm] = useState({ 
     name: '', 
     amount: '', 
@@ -406,6 +412,45 @@ const Dashboard = ({ theme = 'dark' }) => {
     }
   };
 
+  // ── Reconcile handlers ────────────────────────────────────────────────────
+  const handleOpenReconcile = async () => {
+    setShowReconcile(true);
+    setReconcileLoading(true);
+    setReconcileData(null);
+    try {
+      const res = await axios.get(`${API_BASE}/api/splitwise/reconcile`);
+      setReconcileData(res.data);
+      const sels = {};
+      (res.data.confident || []).forEach(c => { sels[c.tx_id] = c.splitwise_expense_id; });
+      (res.data.ambiguous || []).forEach(a => { sels[a.tx_id] = ''; });
+      setReconcileSelections(sels);
+    } catch (e) {
+      alert(e.response?.status === 401 ? 'Connect Splitwise first in Settings.' : 'Failed to fetch Splitwise data.');
+      setShowReconcile(false);
+    } finally {
+      setReconcileLoading(false);
+    }
+  };
+
+  const handleApplyReconcile = async () => {
+    const matches = Object.entries(reconcileSelections)
+      .filter(([, expId]) => expId)
+      .map(([txId, expId]) => ({ tx_id: parseInt(txId), splitwise_expense_id: expId }));
+    if (!matches.length) { setShowReconcile(false); return; }
+    try {
+      await axios.post(`${API_BASE}/api/splitwise/reconcile/apply`, { matches });
+      setTransactions(prev => prev.map(t => {
+        const m = matches.find(x => x.tx_id === t.id);
+        return m ? { ...t, is_synced: true, is_ignored: false, splitwise_expense_id: m.splitwise_expense_id } : t;
+      }));
+      setShowReconcile(false);
+      setReconcileData(null);
+      setActiveTab('pushed');
+    } catch (e) {
+      alert('Failed to apply reconcile.');
+    }
+  };
+
   const handleUnsynced = async (e, id) => {
     e.stopPropagation();
     try {
@@ -533,12 +578,28 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        {/* Row 2: Sync Now button — mobile when connected, desktop always visible in filter bar */}
+        {/* Row 2: Sync Now + Reconcile — mobile when connected */}
         {isMobile && isConnected && (
           <div style={{ marginBottom: '0.85rem', display: 'flex', gap: '0.5rem' }}>
             <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
               {syncButtonContent}
             </div>
+            <button
+              onClick={handleOpenReconcile}
+              title="Match backlog transactions against Splitwise"
+              style={{
+                padding: '0 0.85rem',
+                borderRadius: '10px',
+                background: 'hsla(0,0%,100%,0.04)',
+                border: '1px solid var(--border-light)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.78rem', fontWeight: 600,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: '0.3rem',
+              }}
+            >
+              ⟲ Reconcile
+            </button>
           </div>
         )}
 
@@ -1361,6 +1422,181 @@ const Dashboard = ({ theme = 'dark' }) => {
       <style>{`
         @keyframes spin { 100% { transform: rotate(360deg); } }
       `}</style>
+
+      {/* ── Reconcile Modal ─────────────────────────────────────────────────── */}
+      {showReconcile && (() => {
+        const confident = reconcileData?.confident || [];
+        const ambiguous = reconcileData?.ambiguous || [];
+        const selectedCount = Object.values(reconcileSelections).filter(v => v).length;
+        const fmtAmt = (v) => `$${Number(v).toFixed(2)}`;
+
+        return (
+          <div
+            onClick={(e) => { if (e.target === e.currentTarget) setShowReconcile(false); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 10000,
+              background: 'hsla(0,0%,0%,0.55)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex', alignItems: isMobile ? 'flex-end' : 'center',
+              justifyContent: 'center',
+              padding: isMobile ? '0' : '2rem',
+            }}
+          >
+            <div style={{
+              background: 'var(--bg-main)',
+              border: '1px solid var(--border-light)',
+              borderRadius: isMobile ? '24px 24px 0 0' : '24px',
+              width: '100%', maxWidth: '540px',
+              maxHeight: isMobile ? '88vh' : '80vh',
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <div style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Reconcile with Splitwise</h3>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {reconcileLoading
+                      ? 'Checking Splitwise for matches…'
+                      : reconcileData
+                        ? `${reconcileData.total_checked} unsynced transactions checked`
+                        : ''}
+                  </p>
+                </div>
+                <button onClick={() => setShowReconcile(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem', marginLeft: '1rem' }}>
+                  <FiX size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
+                {reconcileLoading ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-secondary)' }}>
+                    <FiRefreshCw className="spin" size={28} style={{ display: 'block', margin: '0 auto 0.75rem' }} />
+                    Checking Splitwise for matches…
+                  </div>
+                ) : confident.length === 0 && ambiguous.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>✓</div>
+                    No matching Splitwise expenses found for your backlog.
+                  </div>
+                ) : (
+                  <>
+                    {/* ── Confident matches ── */}
+                    {confident.length > 0 && (
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Auto-matched ({confident.length})</span>
+                          <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {confident.map(c => {
+                            const checked = !!reconcileSelections[c.tx_id];
+                            return (
+                              <label
+                                key={c.tx_id}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                  padding: '0.75rem', borderRadius: '12px', cursor: 'pointer',
+                                  background: checked ? 'hsla(150,60%,50%,0.07)' : 'var(--tx-item-bg)',
+                                  border: `1px solid ${checked ? 'hsla(150,60%,50%,0.25)' : 'var(--border-light)'}`,
+                                  transition: 'all 0.15s',
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => setReconcileSelections(prev => ({
+                                    ...prev,
+                                    [c.tx_id]: prev[c.tx_id] ? '' : c.splitwise_expense_id,
+                                  }))}
+                                  style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', flexShrink: 0 }}
+                                />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.tx_name}</span>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, color: 'hsl(150,50%,45%)' }}>{fmtAmt(c.tx_amount)}</span>
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                                    {c.tx_date} · matches <em>"{c.splitwise_description}"</em> on {c.splitwise_date}
+                                  </div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Ambiguous matches ── */}
+                    {ambiguous.length > 0 && (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Needs review ({ambiguous.length})</span>
+                          <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {ambiguous.map(a => (
+                            <div
+                              key={a.tx_id}
+                              style={{
+                                padding: '0.85rem', borderRadius: '12px',
+                                background: 'var(--tx-item-bg)',
+                                border: `1px solid ${reconcileSelections[a.tx_id] ? 'hsla(150,60%,50%,0.25)' : 'var(--border-light)'}`,
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{a.tx_name}</span>
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{fmtAmt(a.tx_amount)}</span>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{a.tx_date}</div>
+                              <select
+                                className="glass-select"
+                                value={reconcileSelections[a.tx_id] || ''}
+                                onChange={(e) => setReconcileSelections(prev => ({ ...prev, [a.tx_id]: e.target.value }))}
+                                style={{ width: '100%', fontSize: '0.83rem', padding: '0.45rem 1.6rem 0.45rem 0.7rem', minHeight: 'unset' }}
+                              >
+                                <option value="">— Skip this transaction —</option>
+                                {a.matches.map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    "{m.description}" · {m.date} · {fmtAmt(m.cost)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              {!reconcileLoading && (confident.length > 0 || ambiguous.length > 0) && (
+                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '0.75rem', flexShrink: 0, paddingBottom: isMobile ? `calc(1rem + env(safe-area-inset-bottom, 0px))` : '1rem' }}>
+                  <button onClick={() => setShowReconcile(false)} className="btn" style={{ flex: 1, padding: '0.7rem' }}>
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleApplyReconcile}
+                    disabled={selectedCount === 0}
+                    style={{
+                      flex: 2, padding: '0.7rem', borderRadius: '12px',
+                      background: selectedCount > 0 ? 'var(--primary)' : 'var(--btn-bg)',
+                      border: 'none', color: selectedCount > 0 ? '#fff' : 'var(--text-muted)',
+                      fontSize: '0.95rem', fontWeight: 700, cursor: selectedCount > 0 ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Mark {selectedCount} as Pushed
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
