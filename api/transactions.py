@@ -124,7 +124,8 @@ def delete_connection(connection_id: int, db: Session = Depends(get_db)):
         client.item_remove(ItemRemoveRequest(access_token=access_token))
     except Exception:
         pass  # If Plaid revocation fails, still clean up locally
-    db.query(Transaction).filter(Transaction.bank_name == conn.institution_name).delete(synchronize_session=False)
+    # Do NOT delete transactions — they retain their state (pushed/others/backlog)
+    # so re-linking the same bank restores everything via plaid_transaction_id dedup
     db.delete(conn)
     # Also clear the legacy plaid_access_token so the status endpoint
     # doesn't recreate this connection via the migration path

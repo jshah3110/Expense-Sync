@@ -388,6 +388,24 @@ const Dashboard = ({ theme = 'dark' }) => {
     }
   };
 
+  const handleMarkAlreadyPushed = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await axios.patch(`${API_BASE}/api/transactions/${id}/mark_synced`, {
+        splitwise_expense_id: null,
+        group_id: null
+      });
+      setTransactions(prev => prev.map(t =>
+        t.id === id ? { ...t, is_synced: true, is_ignored: false } : t
+      ));
+      setExpandedTxIds(prev => prev.filter(i => i !== id));
+      setActiveTab('pushed');
+    } catch (error) {
+      console.error("Error marking as already pushed", error);
+      alert("Failed to mark as pushed.");
+    }
+  };
+
   const handleUnsynced = async (e, id) => {
     e.stopPropagation();
     try {
@@ -1069,21 +1087,36 @@ const Dashboard = ({ theme = 'dark' }) => {
                               <div style={{ flex: 1, height: '1px', background: 'hsla(0,0%,100%,0.07)' }} />
                             </div>
 
-                            {/* Not for Splitwise — full width, subtle */}
+                            {/* Quick-action row: Not for Splitwise + Already in Splitwise */}
                             {activeTab !== 'others' && (
-                              <button
-                                onClick={(e) => handleIgnore(e, tx.id)}
-                                style={{
-                                  width: '100%', marginBottom: '0.75rem',
-                                  padding: '0.55rem', borderRadius: '10px',
-                                  background: 'hsla(0,0%,100%,0.04)',
-                                  border: '1px solid hsla(0,0%,100%,0.1)',
-                                  color: 'var(--text-muted)', fontSize: '0.83rem',
-                                  fontWeight: 600, cursor: 'pointer', letterSpacing: '0.01em',
-                                }}
-                              >
-                                🚫 Not for Splitwise
-                              </button>
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                <button
+                                  onClick={(e) => handleIgnore(e, tx.id)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.55rem', borderRadius: '10px',
+                                    background: 'hsla(0,0%,100%,0.04)',
+                                    border: '1px solid hsla(0,0%,100%,0.1)',
+                                    color: 'var(--text-muted)', fontSize: '0.8rem',
+                                    fontWeight: 600, cursor: 'pointer', letterSpacing: '0.01em',
+                                  }}
+                                >
+                                  🚫 Not for Splitwise
+                                </button>
+                                <button
+                                  onClick={(e) => handleMarkAlreadyPushed(e, tx.id)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.55rem', borderRadius: '10px',
+                                    background: 'hsla(150,60%,50%,0.08)',
+                                    border: '1px solid hsla(150,60%,50%,0.2)',
+                                    color: 'hsl(150,50%,45%)', fontSize: '0.8rem',
+                                    fontWeight: 600, cursor: 'pointer', letterSpacing: '0.01em',
+                                  }}
+                                >
+                                  ✓ Already Pushed
+                                </button>
+                              </div>
                             )}
 
                             {/* Group + Method */}
