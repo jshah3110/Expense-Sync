@@ -337,7 +337,7 @@ const Analytics = () => {
                 />
                 <YAxis hide domain={['auto', 'auto']} />
                 <RechartsTooltip
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
                   labelFormatter={(v) => `Day ${v}`}
                   formatter={(val, name) => [
                     fmt(val),
@@ -369,7 +369,7 @@ const Analytics = () => {
               <YAxis hide />
               <RechartsTooltip
                 cursor={{ fill: 'hsla(0,0%,100%,0.02)' }}
-                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
+                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
                 labelFormatter={monthLabel}
                 formatter={(val) => [fmt(val), spendView === 'splitwise' ? 'Splitwise' : 'Total']}
               />
@@ -459,7 +459,7 @@ const Analytics = () => {
                     </Pie>
                     <RechartsTooltip
                       formatter={(value) => fmt(value)}
-                      contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
+                      contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
