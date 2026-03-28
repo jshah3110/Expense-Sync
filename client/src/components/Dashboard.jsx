@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTrash2 } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTrash2, FiSettings } from 'react-icons/fi';
 import axios from 'axios';
 import API_BASE from '../config';
 
@@ -501,9 +502,16 @@ const Dashboard = () => {
             <h2 style={{ fontSize: '1.35rem', marginBottom: '0.05rem', lineHeight: 1.1 }}>Transactions</h2>
             <p className="subtitle" style={{ fontSize: '0.72rem', opacity: 0.4, margin: 0 }}>Tap to review &amp; push to Splitwise</p>
           </div>
-          <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', gap: '0.3rem', minHeight: '34px', flexShrink: 0 }} onClick={() => setShowMockForm(!showMockForm)}>
-            {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', gap: '0.3rem', minHeight: '34px', flexShrink: 0 }} onClick={() => setShowMockForm(!showMockForm)}>
+              {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
+            </button>
+            {isMobile && (
+              <Link to="/settings" style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', padding: '0.4rem' }}>
+                <FiSettings size={18} />
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Row 2: Sync Now button — mobile when connected, desktop always visible in filter bar */}

@@ -31,31 +31,16 @@ const Navigation = ({ isMobile }) => {
       )}
 
       {isMobile && (
-        <>
-          {/* Mobile top bar with settings */}
-          <div style={{
-            display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
-            padding: '0.75rem 1rem',
-            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-            background: 'var(--bg-primary)',
-          }}>
-            <Link to="/settings" style={{ color: location.pathname === '/settings' ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-              <FiSettings style={{ fontSize: '1.4rem' }} />
-            </Link>
-          </div>
-
-          {/* Mobile bottom nav — Home + Analytics only */}
-          <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
-              <FiHome />
-              <span>Home</span>
-            </Link>
-            <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
-              <FiBarChart2 />
-              <span>Analytics</span>
-            </Link>
-          </nav>
-        </>
+        <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
+            <FiHome />
+            <span>Home</span>
+          </Link>
+          <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
+            <FiBarChart2 />
+            <span>Analytics</span>
+          </Link>
+        </nav>
       )}
     </>
   );

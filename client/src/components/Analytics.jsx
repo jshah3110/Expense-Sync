@@ -5,7 +5,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   AreaChart, Area,
 } from 'recharts';
-import { FiBarChart2, FiActivity, FiChevronRight, FiX } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiBarChart2, FiActivity, FiChevronRight, FiX, FiSettings } from 'react-icons/fi';
 import API_BASE from '../config';
 
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#6366f1', '#eab308'];
@@ -70,6 +71,7 @@ const PieLabel = (props) => {
 const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth }) => {
   const [data, setData]   = useState(null);
   const [loading, setLoading] = useState(true);
+  const isMobile = window.innerWidth <= 640;
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {
@@ -164,6 +166,11 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
         <h2 style={{ fontSize: '1.75rem', fontWeight: 600, margin: 0 }}>Expenses</h2>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {isMobile && (
+            <Link to="/settings" style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', padding: '0.4rem' }}>
+              <FiSettings size={18} />
+            </Link>
+          )}
           {/* Active month chip */}
           {selectedMonth && (
             <button
