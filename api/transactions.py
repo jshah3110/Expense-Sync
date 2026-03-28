@@ -119,12 +119,18 @@ def delete_connection(connection_id: int, db: Session = Depends(get_db)):
     conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
+    access_token = conn.access_token
     try:
-        client.item_remove(ItemRemoveRequest(access_token=conn.access_token))
+        client.item_remove(ItemRemoveRequest(access_token=access_token))
     except Exception:
         pass  # If Plaid revocation fails, still clean up locally
     db.query(Transaction).filter(Transaction.bank_name == conn.institution_name).delete(synchronize_session=False)
     db.delete(conn)
+    # Also clear the legacy plaid_access_token so the status endpoint
+    # doesn't recreate this connection via the migration path
+    user = db.query(UserModel).filter(UserModel.id == 1).first()
+    if user and user.plaid_access_token == access_token:
+        user.plaid_access_token = None
     db.commit()
     return {"status": "deleted"}
 
@@ -309,7 +315,8 @@ def add_manual_mock_transaction(request: MockTransactionRequest, db: Session = D
     )
     db.add(new_tx)
     db.commit()
-    return {"status": "success", "transaction_id": new_tx.plaid_transaction_id}
+    db.refresh(new_tx)
+    return {"status": "success", "id": new_tx.id, "transaction_id": new_tx.plaid_transaction_id}
 
 @router.delete("/{tx_id}")
 def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
