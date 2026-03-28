@@ -30,10 +30,10 @@ const Navigation = () => {
             <Link to="/analytics" className={`nav-link ${location.pathname === '/analytics' ? 'active' : ''}`}>
               <FiBarChart2 /> Analytics
             </Link>
-            <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`} style={{ marginLeft: 'auto', padding: '0.5rem', width: 'auto', background: 'transparent', border: 'none' }} title="Settings">
-              <FiSettings style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }} />
-            </Link>
           </div>
+          <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`} style={{ padding: '0.5rem 1rem', width: 'auto', background: 'transparent', border: 'none' }} title="Settings">
+            <FiSettings style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }} />
+          </Link>
         </nav>
       )}
 
