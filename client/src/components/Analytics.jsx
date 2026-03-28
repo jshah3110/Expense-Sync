@@ -67,12 +67,9 @@ const PieLabel = (props) => {
   );
 };
 
-const Analytics = () => {
-  const [data, setData]               = useState(null);
-  const [loading, setLoading]         = useState(true);
-  const [viewMode, setViewMode]       = useState('bar');       // 'bar' | 'line'
-  const [selectedMonth, setSelectedMonth] = useState(null);   // null = current month
-  const [spendView, setSpendView]     = useState('splitwise'); // 'splitwise' | 'all'
+const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth }) => {
+  const [data, setData]   = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {

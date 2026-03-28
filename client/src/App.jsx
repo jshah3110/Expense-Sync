@@ -5,16 +5,9 @@ import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Analytics from './components/Analytics';
 
-const Navigation = () => {
+const Navigation = ({ isMobile }) => {
   const location = useLocation();
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 640);
 
-  React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 640);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
   return (
     <>
       {!isMobile && (
@@ -38,33 +31,67 @@ const Navigation = () => {
       )}
 
       {isMobile && (
-        <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr auto' }}>
-          <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
-            <FiHome />
-            <span>Home</span>
-          </Link>
-          <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
-            <FiBarChart2 />
-            <span>Analytics</span>
-          </Link>
-          <Link to="/settings" className={`mobile-nav-item ${location.pathname === '/settings' ? 'active' : ''}`} style={{ padding: '0.8rem 1rem' }}>
-            <FiSettings style={{ fontSize: '1.4rem' }} />
-          </Link>
-        </nav>
+        <>
+          {/* Mobile top bar with settings */}
+          <div style={{
+            display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+            padding: '0.75rem 1rem',
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+            background: 'var(--bg-primary)',
+          }}>
+            <Link to="/settings" style={{ color: location.pathname === '/settings' ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+              <FiSettings style={{ fontSize: '1.4rem' }} />
+            </Link>
+          </div>
+
+          {/* Mobile bottom nav — Home + Analytics only */}
+          <nav className="mobile-nav-bar animate-fade-in" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <Link to="/" className={`mobile-nav-item ${location.pathname === '/' ? 'active' : ''}`}>
+              <FiHome />
+              <span>Home</span>
+            </Link>
+            <Link to="/analytics" className={`mobile-nav-item ${location.pathname === '/analytics' ? 'active' : ''}`}>
+              <FiBarChart2 />
+              <span>Analytics</span>
+            </Link>
+          </nav>
+        </>
       )}
     </>
   );
 };
 
 function App() {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 640);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Lifted Analytics state so it persists across navigation
+  const [analyticsViewMode, setAnalyticsViewMode] = React.useState('bar');
+  const [analyticsSpendView, setAnalyticsSpendView] = React.useState('splitwise');
+  const [analyticsSelectedMonth, setAnalyticsSelectedMonth] = React.useState(null);
+
   return (
     <Router>
-      <div style={{ minHeight: '100vh', minHeight: '-webkit-fill-available' }}>
-        <Navigation />
+      <div style={{ minHeight: '100vh', minHeight: '-webkit-fill-available', paddingTop: isMobile ? '3rem' : 0 }}>
+        <Navigation isMobile={isMobile} />
         <main className="app-container">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/analytics" element={
+              <Analytics
+                viewMode={analyticsViewMode}
+                setViewMode={setAnalyticsViewMode}
+                spendView={analyticsSpendView}
+                setSpendView={setAnalyticsSpendView}
+                selectedMonth={analyticsSelectedMonth}
+                setSelectedMonth={setAnalyticsSelectedMonth}
+              />
+            } />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
