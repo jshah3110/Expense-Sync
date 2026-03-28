@@ -68,10 +68,18 @@ const PieLabel = (props) => {
   );
 };
 
-const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth }) => {
+const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth, theme = 'dark' }) => {
   const [data, setData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const isMobile = window.innerWidth <= 640;
+  const isDark = theme === 'dark';
+
+  const tooltipStyle = {
+    backgroundColor: isDark ? '#111' : '#fff',
+    border: `1px solid ${isDark ? '#333' : '#e5e7eb'}`,
+    borderRadius: '8px',
+    color: isDark ? '#fff' : '#111',
+  };
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {
@@ -177,7 +185,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
               onClick={() => setSelectedMonth(null)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.35rem',
-                background: 'hsla(0,0%,100%,0.08)',
+                background: 'var(--surface-overlay)',
                 border: '1px solid var(--border-light)',
                 borderRadius: '50px', padding: '0.35rem 0.75rem',
                 color: 'var(--text-primary)', fontSize: '0.8rem', cursor: 'pointer',
@@ -190,7 +198,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
 
           {/* Spend view toggle */}
           <div style={{
-            display: 'flex', background: 'hsla(0,0%,100%,0.05)',
+            display: 'flex', background: 'var(--surface-overlay)',
             borderRadius: '50px', padding: '0.2rem',
             border: '1px solid var(--border-light)',
             fontSize: '0.75rem',
@@ -203,7 +211,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                 key={view}
                 onClick={() => setSpendView(view)}
                 style={{
-                  background: spendView === view ? 'hsla(0,0%,100%,0.1)' : 'transparent',
+                  background: spendView === view ? 'var(--surface-overlay-hover)' : 'transparent',
                   color: spendView === view ? 'var(--text-primary)' : 'var(--text-secondary)',
                   border: 'none', borderRadius: '50px', padding: '0.35rem 0.7rem',
                   cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -217,7 +225,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
 
           {/* View mode toggle */}
           <div style={{
-            display: 'flex', background: 'hsla(0,0%,100%,0.05)',
+            display: 'flex', background: 'var(--surface-overlay)',
             borderRadius: '50px', padding: '0.2rem',
             border: '1px solid var(--border-light)',
           }}>
@@ -229,7 +237,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 style={{
-                  background: viewMode === mode ? 'hsla(0,0%,100%,0.1)' : 'transparent',
+                  background: viewMode === mode ? 'var(--surface-overlay-hover)' : 'transparent',
                   color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-secondary)',
                   border: 'none', borderRadius: '50px', padding: '0.4rem 0.8rem',
                   cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -277,7 +285,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
         {/* Spend Breakdown Bar - only show in 'all' mode */}
         {spendView === 'all' && summary.total_this_month > 0 && (
           <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', height: '24px', gap: '2px', borderRadius: '4px', overflow: 'hidden', background: 'hsla(0,0%,100%,0.05)' }}>
+            <div style={{ display: 'flex', height: '24px', gap: '2px', borderRadius: '4px', overflow: 'hidden', background: 'var(--surface-overlay)' }}>
               <div style={{
                 flex: summary.unsynced_percentage,
                 background: '#ef4444',
@@ -333,15 +341,15 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                     <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsla(0,0%,100%,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="day"
-                  stroke="#666" fontSize={12} tickLine={false} axisLine={false}
+                  stroke="var(--chart-axis-stroke)" fontSize={12} tickLine={false} axisLine={false}
                   tickMargin={10} minTickGap={30}
                 />
                 <YAxis hide domain={['auto', 'auto']} />
                 <RechartsTooltip
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                  contentStyle={tooltipStyle}
                   labelFormatter={(v) => `Day ${v}`}
                   formatter={(val, name) => [
                     fmt(val),
@@ -364,16 +372,16 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
               data={displayByMonth}
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsla(0,0%,100%,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="month"
                 tickFormatter={monthShort}
-                stroke="#666" fontSize={12} tickLine={false} axisLine={false} tickMargin={10}
+                stroke="var(--chart-axis-stroke)" fontSize={12} tickLine={false} axisLine={false} tickMargin={10}
               />
               <YAxis hide />
               <RechartsTooltip
-                cursor={{ fill: 'hsla(0,0%,100%,0.02)' }}
-                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                cursor={{ fill: isDark ? 'hsla(0,0%,100%,0.02)' : 'hsla(0,0%,0%,0.03)' }}
+                contentStyle={tooltipStyle}
                 labelFormatter={monthLabel}
                 formatter={(val) => [fmt(val), spendView === 'splitwise' ? 'Splitwise' : 'Total']}
               />
@@ -463,7 +471,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                     </Pie>
                     <RechartsTooltip
                       formatter={(value) => fmt(value)}
-                      contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                      contentStyle={tooltipStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -496,15 +504,15 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '0.875rem 1rem',
                       borderRadius: '12px',
-                      background: 'hsla(0,0%,100%,0)',
+                      background: 'transparent',
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'hsla(0,0%,100%,0.04)';
+                      e.currentTarget.style.background = isDark ? 'hsla(0,0%,100%,0.04)' : 'hsla(0,0%,0%,0.04)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'hsla(0,0%,100%,0)';
+                      e.currentTarget.style.background = 'transparent';
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>

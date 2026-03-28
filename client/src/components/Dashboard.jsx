@@ -4,7 +4,8 @@ import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTr
 import axios from 'axios';
 import API_BASE from '../config';
 
-const Dashboard = () => {
+const Dashboard = ({ theme = 'dark' }) => {
+  const isDark = theme === 'dark';
   const [transactions, setTransactions] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -452,7 +453,7 @@ const Dashboard = () => {
         <FiRefreshCw className={isSyncing ? 'spin' : ''} /> 
         {isSyncing ? 'Syncing...' : 'Sync Now'}
       </button>
-      <div style={{ width: '1px', background: 'hsla(0,0%,100%,0.2)', margin: '0.4rem 0' }}></div>
+      <div style={{ width: '1px', background: 'var(--separator-bg)', margin: '0.4rem 0' }}></div>
       <div style={{ position: 'relative' }}>
         <select 
           className="glass-select" 
@@ -491,7 +492,7 @@ const Dashboard = () => {
         padding: isMobile 
           ? `calc(env(safe-area-inset-top, 0px) + 0.85rem) 1.25rem 0` 
           : '0 0 0.5rem',
-        background: isMobile ? 'hsla(240,10%,5%,0.98)' : 'transparent',
+        background: isMobile ? 'var(--sticky-header-bg)' : 'transparent',
         borderBottom: isMobile ? '1px solid var(--border-light)' : 'none',
         marginBottom: isMobile ? '0' : '1rem',
       }}>
@@ -571,9 +572,9 @@ const Dashboard = () => {
 
         {datePreset === 'custom' && (
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center' }}>
-            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: isDark ? 'dark' : 'light', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             <span style={{ opacity: 0.35, fontSize: '0.9rem' }}>→</span>
-            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: 'dark', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <input type="date" className="glass-input" style={{ padding: '0.4rem 0.7rem', colorScheme: isDark ? 'dark' : 'light', fontSize: '0.82rem', minHeight: 'unset', flex: 1 }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
         )}
 
@@ -668,7 +669,7 @@ const Dashboard = () => {
                 <input 
                   type="date" 
                   className="glass-input" 
-                  style={{ colorScheme: 'dark' }}
+                  style={{ colorScheme: isDark ? 'dark' : 'light' }}
                   value={mockForm.date}
                   onChange={(e) => setMockForm({...mockForm, date: e.target.value})}
                   required
@@ -1053,7 +1054,7 @@ const Dashboard = () => {
                           <input
                             type="date"
                             className="glass-input"
-                            style={{ colorScheme: 'dark', minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem', width: '100%' }}
+                            style={{ colorScheme: isDark ? 'dark' : 'light', minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem', width: '100%' }}
                             value={tx.displayDate || (tx.date ? (tx.date.includes('T') ? tx.date.split('T')[0] : tx.date) : new Date().toISOString().split('T')[0])}
                             onChange={(e) => handleTxChange(tx.id, 'displayDate', e.target.value)}
                           />

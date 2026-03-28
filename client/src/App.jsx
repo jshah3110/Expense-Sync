@@ -55,6 +55,21 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Theme: read from localStorage, fall back to OS preference, default dark
+  const [theme, setTheme] = React.useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    return 'dark';
+  });
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+
   // Lifted Analytics state so it persists across navigation
   const [analyticsViewMode, setAnalyticsViewMode] = React.useState('bar');
   const [analyticsSpendView, setAnalyticsSpendView] = React.useState('splitwise');
@@ -66,7 +81,7 @@ function App() {
         <Navigation isMobile={isMobile} />
         <main className="app-container">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Dashboard theme={theme} />} />
             <Route path="/analytics" element={
               <Analytics
                 viewMode={analyticsViewMode}
@@ -75,9 +90,10 @@ function App() {
                 setSpendView={setAnalyticsSpendView}
                 selectedMonth={analyticsSelectedMonth}
                 setSelectedMonth={setAnalyticsSelectedMonth}
+                theme={theme}
               />
             } />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<Settings theme={theme} onToggleTheme={toggleTheme} />} />
           </Routes>
         </main>
       </div>

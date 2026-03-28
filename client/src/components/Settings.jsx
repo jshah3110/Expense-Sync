@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FiCheckCircle, FiLink2, FiAlertCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiLink2, FiAlertCircle, FiSun, FiMoon } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { usePlaidLink } from 'react-plaid-link';
 import API_BASE from '../config';
 
-const Settings = () => {
+const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [splitwiseConnected, setSplitwiseConnected] = useState(false);
   const [plaidConnected, setPlaidConnected] = useState(false);
   const [plaidConnections, setPlaidConnections] = useState([]);
@@ -99,10 +99,35 @@ const Settings = () => {
 
   return (
     <div className="animate-fade-in stagger-1">
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Integrations</h2>
-      <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Connect your accounts to automate.</p>
+      <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Settings</h2>
+      <p className="subtitle" style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Manage your preferences and integrations.</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+        {/* Appearance Card */}
+        <div className="glass-card animate-fade-in stagger-1" style={{ padding: '1.25rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}>Appearance</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              <FiSun size={16} />
+              <span>Light</span>
+            </div>
+            <button
+              onClick={onToggleTheme}
+              className={`theme-toggle ${theme === 'dark' ? 'dark' : ''}`}
+              aria-label="Toggle theme"
+            >
+              <div className="theme-toggle-knob" />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              <span>Dark</span>
+              <FiMoon size={16} />
+            </div>
+          </div>
+        </div>
+        {/* Integrations heading */}
+        <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', paddingLeft: '0.25rem', marginTop: '0.5rem' }}>Integrations</h3>
+
         {/* Splitwise Card */}
         <div className="glass-card animate-fade-in stagger-2" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -157,7 +182,7 @@ const Settings = () => {
           {plaidConnections.length > 0 && (
             <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {plaidConnections.map(c => (
-                 <div key={c.id} style={{ background: 'hsla(0,0%,100%,0.05)', border: '1px solid hsla(0,0%,100%,0.1)', padding: '0.5rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                 <div key={c.id} style={{ background: 'var(--surface-overlay)', border: '1px solid var(--border-light)', padding: '0.5rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '1.1rem' }}>🏦</span> 
                     <span style={{ fontWeight: 600 }}>{c.institution_name}</span>
                     <FiCheckCircle style={{ color: '#10b981', marginLeft: '0.2rem' }} />
