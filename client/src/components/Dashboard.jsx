@@ -578,24 +578,27 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        {/* Row 2: Sync Now + Reconcile — mobile when connected */}
-        {isMobile && isConnected && (
+        {/* Row 2: Sync Now (when bank connected) + Reconcile (always on mobile) */}
+        {isMobile && (
           <div style={{ marginBottom: '0.85rem', display: 'flex', gap: '0.5rem' }}>
-            <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-              {syncButtonContent}
-            </div>
+            {isConnected && (
+              <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                {syncButtonContent}
+              </div>
+            )}
             <button
               onClick={handleOpenReconcile}
               title="Match backlog transactions against Splitwise"
               style={{
-                padding: '0 0.85rem',
+                flex: isConnected ? 'none' : 1,
+                padding: isConnected ? '0 0.85rem' : '0.6rem',
                 borderRadius: '10px',
                 background: 'hsla(0,0%,100%,0.04)',
                 border: '1px solid var(--border-light)',
                 color: 'var(--text-secondary)',
                 fontSize: '0.78rem', fontWeight: 600,
                 cursor: 'pointer', whiteSpace: 'nowrap',
-                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
               }}
             >
               ⟲ Reconcile
