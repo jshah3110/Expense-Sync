@@ -546,8 +546,8 @@ const Dashboard = ({ theme = 'dark' }) => {
     <div>
       {/* ─── FILTER BAR ─────────────────────────────────────────── */}
       <div style={{ 
-        padding: isMobile 
-          ? `calc(env(safe-area-inset-top, 0px) + 0.85rem) 1.25rem 0` 
+        padding: isMobile
+          ? '0.75rem 1.25rem 0'
           : '0 0 0.5rem',
         background: isMobile ? 'var(--sticky-header-bg)' : 'transparent',
         borderBottom: isMobile ? '1px solid var(--border-light)' : 'none',

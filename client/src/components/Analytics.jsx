@@ -70,6 +70,9 @@ const PieLabel = (props) => {
 
 const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMonth, setSelectedMonth, data, setData, loading, setLoading, theme = 'dark' }) => {
   const [isFetching, setIsFetching] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryTxs, setCategoryTxs] = useState([]);
+  const [categoryTxsLoading, setCategoryTxsLoading] = useState(false);
   const isMobile = window.innerWidth <= 640;
   const isDark = theme === 'dark';
 
@@ -100,12 +103,36 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
 
   useEffect(() => {
     fetchAnalytics(selectedMonth);
+    setSelectedCategory(null);
+    setCategoryTxs([]);
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bar click handler ─────────────────────────────────────────────────────
   const handleBarClick = (barData) => {
     if (!barData?.month) return;
     setSelectedMonth((prev) => (prev === barData.month ? null : barData.month));
+  };
+
+  // ── Category drill-down ───────────────────────────────────────────────────
+  const handleCategoryClick = async (catName, targetMonth) => {
+    if (selectedCategory === catName) {
+      setSelectedCategory(null);
+      setCategoryTxs([]);
+      return;
+    }
+    setSelectedCategory(catName);
+    setCategoryTxsLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/api/transactions/`);
+      const filtered = res.data
+        .filter(tx => tx.category === catName && (tx.date || '').slice(0, 7) === targetMonth)
+        .sort((a, b) => b.amount - a.amount);
+      setCategoryTxs(filtered);
+    } catch (e) {
+      console.error('Failed to fetch category transactions', e);
+    } finally {
+      setCategoryTxsLoading(false);
+    }
   };
 
   // ── Loading / empty states ────────────────────────────────────────────────
@@ -498,38 +525,88 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
             </div>
 
             {/* Category list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               {by_category.map((cat, i) => {
                 const pct = displaySummary.total_this_month > 0
                   ? (cat.total / displaySummary.total_this_month) * 100
                   : 0;
+                const isOpen = selectedCategory === cat.category;
                 return (
-                  <div
-                    key={`${summary.target_month}-${cat.category}`}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '0.875rem 1rem',
-                      borderRadius: '12px',
-                      background: 'transparent',
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = isDark ? 'hsla(0,0%,100%,0.04)' : 'hsla(0,0%,0%,0.04)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                      <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                      <span style={{ fontWeight: 500, fontSize: '1rem' }}>{cat.category}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
+                  <div key={`${summary.target_month}-${cat.category}`}>
+                    {/* Category row */}
+                    <div
+                      onClick={() => handleCategoryClick(cat.category, summary.target_month)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '0.875rem 1rem',
+                        borderRadius: isOpen ? '12px 12px 0 0' : '12px',
+                        background: isOpen
+                          ? (isDark ? 'hsla(0,0%,100%,0.06)' : 'hsla(0,0%,0%,0.05)')
+                          : 'transparent',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = isDark ? 'hsla(0,0%,100%,0.04)' : 'hsla(0,0%,0%,0.04)'; }}
+                      onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                        <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500, fontSize: '1rem' }}>{cat.category}</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.total)}</span>
+                        <FiChevronRight size={18} style={{ color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(90deg)' : 'none', opacity: 0.6 }} />
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.total)}</span>
-                      <FiChevronRight size={18} style={{ color: 'var(--text-muted)', transition: 'all 0.2s ease', opacity: 0.6 }} />
-                    </div>
+
+                    {/* Drill-down transaction list */}
+                    {isOpen && (
+                      <div style={{
+                        borderRadius: '0 0 12px 12px',
+                        background: isDark ? 'hsla(0,0%,100%,0.03)' : 'hsla(0,0%,0%,0.03)',
+                        borderTop: '1px solid var(--border-light)',
+                        overflow: 'hidden',
+                      }}>
+                        {categoryTxsLoading ? (
+                          <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Loading…
+                          </div>
+                        ) : categoryTxs.length === 0 ? (
+                          <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No transactions found.
+                          </div>
+                        ) : (
+                          categoryTxs.map((tx, ti) => (
+                            <div
+                              key={tx.id}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '0.7rem 1rem',
+                                borderTop: ti > 0 ? '1px solid var(--border-light)' : 'none',
+                                gap: '0.75rem',
+                              }}
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 500, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {tx.name}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                                  {tx.date}
+                                  {tx.bank_name && tx.bank_name !== 'Manual Entry' && ` · ${tx.bank_name}`}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                                {tx.is_synced && (
+                                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} title="Pushed to Splitwise" />
+                                )}
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{fmt(tx.amount)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
