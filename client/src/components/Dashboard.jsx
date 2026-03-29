@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTrash2, FiSettings } from 'react-icons/fi';
+import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTrash2, FiSettings, FiDownload } from 'react-icons/fi';
 import axios from 'axios';
 import API_BASE from '../config';
 
@@ -155,7 +155,8 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [datePreset, dateFrom, dateTo, sortConfig, categoryFilter, bankFilter, merchantFilter]);
+    setSelectedTxIds([]);
+  }, [datePreset, dateFrom, dateTo, sortConfig, categoryFilter, bankFilter, merchantFilter, activeTab]);
 
   const [syncDays, setSyncDays] = useState('30');
   const [syncErrors, setSyncErrors] = useState([]);
@@ -460,6 +461,48 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Date', 'Merchant', 'Amount', 'Category', 'Bank', 'Status'];
+    const rows = displayedTransactions.map(t => [
+      t.displayDate || (t.date ? t.date.split('T')[0] : ''),
+      `"${(t.name || '').replace(/"/g, '""')}"`,
+      t.amount.toFixed(2),
+      `"${(t.category || '').replace(/"/g, '""')}"`,
+      `"${(t.bank_name || '').replace(/"/g, '""')}"`,
+      t.is_synced ? 'Pushed' : t.is_ignored ? 'Others' : 'Backlog',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${activeTab}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkIgnore = async () => {
+    if (!confirm(`Move ${selectedTxIds.length} transaction(s) to Others?`)) return;
+    try {
+      await axios.post(`${API_BASE}/api/transactions/bulk_ignore`, { tx_ids: selectedTxIds });
+      setTransactions(prev => prev.map(t =>
+        selectedTxIds.includes(t.id) ? { ...t, is_ignored: true, is_synced: false } : t
+      ));
+      setSelectedTxIds([]);
+    } catch (e) { alert('Failed to ignore transactions.'); }
+  };
+
+  const handleBulkMarkPushed = async () => {
+    if (!confirm(`Mark ${selectedTxIds.length} transaction(s) as pushed?`)) return;
+    try {
+      await axios.post(`${API_BASE}/api/transactions/bulk_mark_synced`, { tx_ids: selectedTxIds });
+      setTransactions(prev => prev.map(t =>
+        selectedTxIds.includes(t.id) ? { ...t, is_synced: true, is_ignored: false } : t
+      ));
+      setSelectedTxIds([]);
+    } catch (e) { alert('Failed to mark transactions as pushed.'); }
+  };
+
   const displayedTransactions = transactions.filter(t => {
     let isRightTab = false;
     if (activeTab === 'backlog') isRightTab = !t.is_synced && !t.is_ignored;
@@ -572,6 +615,19 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
                 }}
               >
                 ⟲
+              </button>
+            )}
+            {isMobile && displayedTransactions.length > 0 && (
+              <button
+                onClick={handleExportCSV}
+                title="Export CSV"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-secondary)', display: 'flex', alignItems: 'center',
+                  padding: '0.4rem',
+                }}
+              >
+                <FiDownload size={17} />
               </button>
             )}
             <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', gap: '0.3rem', minHeight: '34px', flexShrink: 0 }} onClick={() => setShowMockForm(!showMockForm)}>
@@ -721,6 +777,24 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
               >
                 ⟲ Reconcile
               </button>
+              {displayedTransactions.length > 0 && (
+                <button
+                  onClick={handleExportCSV}
+                  title="Export current view as CSV"
+                  style={{
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: '10px',
+                    background: 'hsla(0,0%,100%,0.04)',
+                    border: '1px solid var(--border-light)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.78rem', fontWeight: 600,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                  }}
+                >
+                  <FiDownload size={14} /> Export
+                </button>
+              )}
             </>
           )}
         </div>
@@ -972,40 +1046,67 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
           })}
         </div>
 
-        {/* Select all + bulk delete — hidden on mobile to reduce clutter */}
-        {displayedTransactions.length > 0 && !isMobile && (
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0' }}>
-             <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-               <input 
-                 type="checkbox" 
-                 className="glass-checkbox"
-                 checked={selectedTxIds.length === displayedTransactions.length && displayedTransactions.length > 0}
-                 onChange={(e) => setSelectedTxIds(e.target.checked ? displayedTransactions.map(t => t.id) : [])}
-               />
-               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Select All</span>
-             </label>
-             
-             {selectedTxIds.length > 0 && (
-               <button 
-                 onClick={async () => {
-                   if (!confirm(`Are you sure you want to completely delete ${selectedTxIds.length} synced transactions?`)) return;
-                   try {
-                     await axios.post(`${API_BASE}/api/transactions/bulk_delete`, { tx_ids: selectedTxIds });
-                     setTransactions(prev => prev.filter(t => !selectedTxIds.includes(t.id)));
-                     setSelectedTxIds([]);
-                   } catch(e) { alert("Failed to bulk delete"); }
-                 }}
-                 style={{ 
-                   background: 'hsla(0, 80%, 50%, 0.1)', color: '#ef4444', border: '1px solid #ef4444',
-                   padding: '0.4rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-                   display: 'flex', alignItems: 'center'
-                 }}
-               >
-                 <FiTrash2 style={{ marginRight: '0.4rem' }} />
-                 Delete Selected ({selectedTxIds.length})
-               </button>
-             )}
-           </div>
+        {/* Select all + bulk actions */}
+        {displayedTransactions.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                className="glass-checkbox"
+                checked={selectedTxIds.length === displayedTransactions.length && displayedTransactions.length > 0}
+                onChange={(e) => setSelectedTxIds(e.target.checked ? displayedTransactions.map(t => t.id) : [])}
+              />
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                {selectedTxIds.length > 0 ? `${selectedTxIds.length} selected` : 'Select All'}
+              </span>
+            </label>
+
+            {selectedTxIds.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {activeTab === 'backlog' && (
+                  <>
+                    <button
+                      onClick={handleBulkMarkPushed}
+                      style={{
+                        background: 'hsla(150, 60%, 50%, 0.1)', color: 'hsl(150, 60%, 50%)', border: '1px solid hsl(150, 60%, 50%)',
+                        padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                      }}
+                    >
+                      ✓ Mark Pushed
+                    </button>
+                    <button
+                      onClick={handleBulkIgnore}
+                      style={{
+                        background: 'hsla(0,0%,100%,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)',
+                        padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                      }}
+                    >
+                      👻 Ignore
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete ${selectedTxIds.length} transaction(s)? This cannot be undone.`)) return;
+                    try {
+                      await axios.post(`${API_BASE}/api/transactions/bulk_delete`, { tx_ids: selectedTxIds });
+                      setTransactions(prev => prev.filter(t => !selectedTxIds.includes(t.id)));
+                      setSelectedTxIds([]);
+                    } catch (e) { alert('Failed to bulk delete'); }
+                  }}
+                  style={{
+                    background: 'hsla(0, 80%, 50%, 0.1)', color: '#ef4444', border: '1px solid #ef4444',
+                    padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                  }}
+                >
+                  <FiTrash2 size={13} /> Delete
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {displayedTransactions.length === 0 ? (

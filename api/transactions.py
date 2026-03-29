@@ -51,6 +51,9 @@ class LinkTokenRequest(BaseModel):
 class BulkDeleteRequest(BaseModel):
     tx_ids: list[int]
 
+class BulkActionRequest(BaseModel):
+    tx_ids: list[int]
+
 class PublicTokenRequest(BaseModel):
     public_token: str
 
@@ -355,6 +358,24 @@ def bulk_delete_transactions(request: BulkDeleteRequest, db: Session = Depends(g
     db.query(Transaction).filter(Transaction.id.in_(request.tx_ids)).delete(synchronize_session=False)
     db.commit()
     return {"status": "success", "deleted": len(request.tx_ids)}
+
+@router.post("/bulk_ignore")
+def bulk_ignore_transactions(request: BulkActionRequest, db: Session = Depends(get_db)):
+    """Move multiple transactions to Others tab"""
+    db.query(Transaction).filter(Transaction.id.in_(request.tx_ids)).update(
+        {"is_ignored": True, "is_synced": False}, synchronize_session=False
+    )
+    db.commit()
+    return {"status": "success", "updated": len(request.tx_ids)}
+
+@router.post("/bulk_mark_synced")
+def bulk_mark_synced_transactions(request: BulkActionRequest, db: Session = Depends(get_db)):
+    """Mark multiple transactions as pushed (without Splitwise)"""
+    db.query(Transaction).filter(Transaction.id.in_(request.tx_ids)).update(
+        {"is_synced": True, "is_ignored": False}, synchronize_session=False
+    )
+    db.commit()
+    return {"status": "success", "updated": len(request.tx_ids)}
 
 @router.patch("/{tx_id}/mark_synced")
 def mark_transaction_synced(tx_id: int, data: dict, db: Session = Depends(get_db)):
