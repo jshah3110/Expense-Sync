@@ -6,7 +6,7 @@ import {
   AreaChart, Area,
 } from 'recharts';
 import { Link } from 'react-router-dom';
-import { FiBarChart2, FiActivity, FiChevronRight, FiX, FiSettings } from 'react-icons/fi';
+import { FiBarChart2, FiActivity, FiChevronRight, FiX, FiSettings, FiEdit2, FiCheck } from 'react-icons/fi';
 import API_BASE from '../config';
 
 const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#6366f1', '#eab308'];
@@ -73,6 +73,9 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryTxs, setCategoryTxs] = useState([]);
   const [categoryTxsLoading, setCategoryTxsLoading] = useState(false);
+  const [budgets, setBudgets] = useState({});
+  const [editingBudget, setEditingBudget] = useState(null);
+  const [budgetInput, setBudgetInput] = useState('');
   const isMobile = window.innerWidth <= 640;
   const isDark = theme === 'dark';
 
@@ -117,6 +120,24 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
     setSelectedCategory(null);
     setCategoryTxs([]);
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    axios.get(`${API_BASE}/api/budgets/`).then(res => setBudgets(res.data)).catch(() => {});
+  }, []);
+
+  const saveBudget = async (category) => {
+    const limit = parseFloat(budgetInput);
+    try {
+      if (!budgetInput || isNaN(limit) || limit <= 0) {
+        await axios.delete(`${API_BASE}/api/budgets/${encodeURIComponent(category)}`);
+        setBudgets(prev => { const n = { ...prev }; delete n[category]; return n; });
+      } else {
+        await axios.post(`${API_BASE}/api/budgets/`, { category, monthly_limit: limit });
+        setBudgets(prev => ({ ...prev, [category]: limit }));
+      }
+    } catch (e) { console.error('Failed to save budget', e); }
+    setEditingBudget(null);
+  };
 
   useEffect(() => {
     setSelectedCategory(null);
@@ -560,11 +581,15 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                 const pct = categoryTotal > 0 ? (cat.displayTotal / categoryTotal) * 100 : 0;
                 const isOpen = selectedCategory === cat.category;
                 const syncedOnly = spendView === 'splitwise';
+                const budget = budgets[cat.category];
+                const budgetPct = budget ? Math.min((cat.displayTotal / budget) * 100, 100) : null;
+                const budgetColor = budgetPct == null ? null : budgetPct >= 100 ? '#ef4444' : budgetPct >= 75 ? '#f59e0b' : '#10b981';
+                const isEditingThis = editingBudget === cat.category;
                 return (
                   <div key={`${summary.target_month}-${cat.category}`}>
                     {/* Category row */}
                     <div
-                      onClick={() => handleCategoryClick(cat.category, summary.target_month, syncedOnly)}
+                      onClick={() => { if (isEditingThis) return; handleCategoryClick(cat.category, summary.target_month, syncedOnly); }}
                       style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         padding: '0.875rem 1rem',
@@ -573,18 +598,64 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                           ? (isDark ? 'hsla(0,0%,100%,0.06)' : 'hsla(0,0%,0%,0.05)')
                           : 'transparent',
                         transition: 'all 0.2s ease',
-                        cursor: 'pointer',
+                        cursor: isEditingThis ? 'default' : 'pointer',
                       }}
-                      onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = isDark ? 'hsla(0,0%,100%,0.04)' : 'hsla(0,0%,0%,0.04)'; }}
+                      onMouseEnter={(e) => { if (!isOpen && !isEditingThis) e.currentTarget.style.background = isDark ? 'hsla(0,0%,100%,0.04)' : 'hsla(0,0%,0%,0.04)'; }}
                       onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                         <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                        <span style={{ fontWeight: 500, fontSize: '1rem' }}>{cat.category}</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 500, fontSize: '1rem' }}>{cat.category}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
+                          </div>
+                          {budget && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem' }}>
+                              <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--border-light)', overflow: 'hidden' }}>
+                                <div style={{ width: `${budgetPct}%`, height: '100%', borderRadius: '2px', background: budgetColor, transition: 'width 0.4s ease' }} />
+                              </div>
+                              <span style={{ fontSize: '0.68rem', color: budgetColor, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                {fmt(cat.displayTotal)} / {fmt(budget)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.displayTotal)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0, marginLeft: '0.5rem' }}>
+                        {isEditingThis ? (
+                          <>
+                            <input
+                              type="number"
+                              autoFocus
+                              placeholder="limit"
+                              value={budgetInput}
+                              onChange={e => setBudgetInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') saveBudget(cat.category); if (e.key === 'Escape') setEditingBudget(null); }}
+                              onClick={e => e.stopPropagation()}
+                              style={{ width: '72px', padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                            />
+                            <button onClick={(e) => { e.stopPropagation(); saveBudget(cat.category); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', padding: '0.2rem', display: 'flex' }}>
+                              <FiCheck size={16} />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingBudget(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.2rem', display: 'flex' }}>
+                              <FiX size={16} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.displayTotal)}</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditingBudget(cat.category); setBudgetInput(budget ? String(budget) : ''); }}
+                              title="Set budget"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: budget ? budgetColor : 'var(--text-muted)', padding: '0.2rem', display: 'flex', opacity: budget ? 1 : 0.4, transition: 'opacity 0.2s' }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                              onMouseLeave={e => e.currentTarget.style.opacity = budget ? '1' : '0.4'}
+                            >
+                              <FiEdit2 size={13} />
+                            </button>
+                          </>
+                        )}
                         <FiChevronRight size={18} style={{ color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(90deg)' : 'none', opacity: 0.6 }} />
                       </div>
                     </div>

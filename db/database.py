@@ -52,6 +52,12 @@ class BankConnection(Base):
     sync_cursor = Column(String, nullable=True)
     last_sync_error = Column(String, nullable=True)
 
+class Budget(Base):
+    __tablename__ = "budgets"
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String, unique=True, nullable=False)
+    monthly_limit = Column(Float, nullable=False)
+
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
@@ -85,6 +91,10 @@ try:
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN last_sync_error VARCHAR"))
 except Exception:
     pass
+
+from sqlalchemy import inspect as sa_inspect
+if 'budgets' not in sa_inspect(engine).get_table_names():
+    Budget.__table__.create(bind=engine)
 
 def get_db():
     db = SessionLocal()

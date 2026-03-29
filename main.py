@@ -28,6 +28,8 @@ def read_root():
 
 from api.splitwise import router as splitwise_router
 from api.transactions import router as transactions_router
+from api.budgets import router as budgets_router
 
 app.include_router(splitwise_router, prefix="/api/splitwise")
 app.include_router(transactions_router, prefix="/api/transactions")
+app.include_router(budgets_router, prefix="/api/budgets")
