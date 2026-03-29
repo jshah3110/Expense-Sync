@@ -346,8 +346,6 @@ const Dashboard = ({ theme = 'dark' }) => {
         t.id === id ? { ...t, is_synced: true, is_ignored: false, splitwise_expense_id: splitwiseId } : t
       ));
       setExpandedTxIds(prev => prev.filter(i => i !== id));
-      setActiveTab('pushed');
-      
     } catch (error) {
       console.error("Error pushing to Splitwise", error);
       alert(`Failed to push: ${error.message || 'Check console.'}`);
@@ -388,7 +386,6 @@ const Dashboard = ({ theme = 'dark' }) => {
         t.id === id ? { ...t, is_ignored: false, is_synced: false } : t
       ));
       setExpandedTxIds(prev => prev.filter(i => i !== id));
-      setActiveTab('backlog');
     } catch (error) {
       alert("Failed to restore transaction.");
     }
@@ -405,7 +402,6 @@ const Dashboard = ({ theme = 'dark' }) => {
         t.id === id ? { ...t, is_synced: true, is_ignored: false } : t
       ));
       setExpandedTxIds(prev => prev.filter(i => i !== id));
-      setActiveTab('pushed');
     } catch (error) {
       console.error("Error marking as already pushed", error);
       alert("Failed to mark as pushed.");
@@ -445,7 +441,6 @@ const Dashboard = ({ theme = 'dark' }) => {
       }));
       setShowReconcile(false);
       setReconcileData(null);
-      setActiveTab('pushed');
     } catch (e) {
       alert('Failed to apply reconcile.');
     }
@@ -455,10 +450,9 @@ const Dashboard = ({ theme = 'dark' }) => {
     e.stopPropagation();
     try {
       await axios.patch(`${API_BASE}/api/transactions/${id}/unmark_synced`);
-      setTransactions(prev => prev.map(t => 
+      setTransactions(prev => prev.map(t =>
         t.id === id ? { ...t, is_synced: false, splitwise_expense_id: null } : t
       ));
-      setActiveTab('backlog');
       setExpandedTxIds(prev => prev.filter(i => i !== id));
     } catch (error) {
       console.error("Error un-marking as synced", error);
