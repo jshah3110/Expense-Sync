@@ -7,6 +7,8 @@ import API_BASE from '../config';
 
 const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [splitwiseConnected, setSplitwiseConnected] = useState(false);
+  const [pullLoading, setPullLoading] = useState(false);
+  const [pullResult, setPullResult] = useState(null);
   const [plaidConnected, setPlaidConnected] = useState(false);
   const [plaidConnections, setPlaidConnections] = useState([]);
   const [linkToken, setLinkToken] = useState(null);
@@ -72,6 +74,19 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
 
   const handleConnectSplitwise = () => {
     window.location.href = `${API_BASE}/api/splitwise/connect`;
+  };
+
+  const handlePullSplitwise = async () => {
+    setPullLoading(true);
+    setPullResult(null);
+    try {
+      const res = await axios.post(`${API_BASE}/api/splitwise/pull`);
+      setPullResult(res.data.added === 0 ? 'Already up to date.' : `Imported ${res.data.added} expense${res.data.added === 1 ? '' : 's'} from Splitwise.`);
+    } catch (e) {
+      setPullResult('Failed to pull from Splitwise.');
+    } finally {
+      setPullLoading(false);
+    }
   };
 
   const handleDeleteConnection = async (id) => {
@@ -190,7 +205,26 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
             )}
           </div>
 
-          {!splitwiseConnected && (
+          {splitwiseConnected ? (
+            <div>
+              <button
+                className="btn btn-splitwise"
+                onClick={handlePullSplitwise}
+                disabled={pullLoading}
+                style={{ opacity: pullLoading ? 0.7 : 1 }}
+              >
+                {pullLoading ? '⟳ Pulling…' : '⬇ Pull from Splitwise'}
+              </button>
+              {pullResult && (
+                <p style={{ marginTop: '0.6rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {pullResult}
+                </p>
+              )}
+              <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Imports expenses added directly in Splitwise (last 6 months) into your Pushed tab.
+              </p>
+            </div>
+          ) : (
             <button className="btn btn-splitwise" onClick={handleConnectSplitwise}>
               <FiLink2 /> Connect Splitwise Account
             </button>

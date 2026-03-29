@@ -225,6 +225,66 @@ def apply_reconcile(data: dict, db: Session = Depends(get_db)):
     return {"status": "success", "applied": applied}
 
 
+@router.post("/pull")
+def pull_splitwise_expenses(db: Session = Depends(get_db)):
+    """Import Splitwise expenses created outside this app as synced local records."""
+    import datetime as dt
+    token = get_splitwise_token(db)
+    if not token:
+        raise HTTPException(status_code=401, detail="Splitwise not connected")
+
+    dated_after = (dt.datetime.now() - dt.timedelta(days=180)).strftime("%Y-%m-%dT00:00:00Z")
+    headers = {"Authorization": f"Bearer {token}"}
+    all_expenses = []
+    offset = 0
+    limit = 100
+    while True:
+        resp = requests.get(
+            f"{API_BASE}/get_expenses",
+            headers=headers,
+            params={"dated_after": dated_after, "limit": limit, "offset": offset},
+        )
+        if resp.status_code != 200:
+            break
+        expenses = resp.json().get("expenses", [])
+        if not expenses:
+            break
+        all_expenses.extend([e for e in expenses if not e.get("deleted_at") and not e.get("payment")])
+        if len(expenses) < limit:
+            break
+        offset += limit
+
+    added = 0
+    for e in all_expenses:
+        exp_id = str(e["id"])
+        existing = db.query(TransactionModel).filter(TransactionModel.splitwise_expense_id == exp_id).first()
+        if existing:
+            continue
+        cost = round(float(e.get("cost", "0")), 2)
+        if cost <= 0:
+            continue
+        date = (e.get("date") or "")[:10]
+        group_id = e.get("group_id")
+        new_tx = TransactionModel(
+            plaid_transaction_id=f"sw_pull_{exp_id}",
+            account_id="splitwise",
+            amount=cost,
+            date=date,
+            name=e.get("description", "Splitwise Expense"),
+            category="General",
+            bank_name="Splitwise",
+            is_synced=True,
+            is_ignored=False,
+            splitwise_expense_id=exp_id,
+            splitwise_group_id=str(group_id) if group_id else None,
+        )
+        db.add(new_tx)
+        added += 1
+
+    db.commit()
+    return {"status": "success", "added": added}
+
+
 @router.post("/expense")
 def add_expense(expense_data: dict, db: Session = Depends(get_db)):
     """Creates a new expense in Splitwise."""

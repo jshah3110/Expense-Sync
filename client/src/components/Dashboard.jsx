@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTrash2, FiSettings, FiDownload } from 'react-icons/fi';
 import axios from 'axios';
@@ -160,6 +160,14 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
 
   const [syncDays, setSyncDays] = useState('30');
   const [syncErrors, setSyncErrors] = useState([]);
+
+  // ── Swipe gesture state (mobile only) ─────────────────────────────────────
+  const [swipingId, setSwipingId] = useState(null);
+  const [swipeDx, setSwipeDx] = useState(0);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const swipeIsHorizontal = useRef(false);
+  const swipeOccurred = useRef(false);
 
   const handleSyncBank = async () => {
     setIsSyncing(true);
@@ -459,6 +467,45 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
       console.error("Error un-marking as synced", error);
       alert("Failed to un-mark transaction.");
     }
+  };
+
+  const handleTxTouchStart = (e, id) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    swipeIsHorizontal.current = false;
+    swipeOccurred.current = false;
+    setSwipingId(id);
+    setSwipeDx(0);
+  };
+
+  const handleTxTouchMove = (e, id) => {
+    if (swipingId !== id) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (!swipeIsHorizontal.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      swipeIsHorizontal.current = Math.abs(dx) > Math.abs(dy);
+    }
+    if (swipeIsHorizontal.current) {
+      setSwipeDx(dx);
+    }
+  };
+
+  const handleTxTouchEnd = async (e, tx) => {
+    const THRESHOLD = 80;
+    const fakeE = { stopPropagation: () => {} };
+    if (swipeIsHorizontal.current && Math.abs(swipeDx) > 15) {
+      swipeOccurred.current = true;
+    }
+    if (swipeDx < -THRESHOLD) {
+      if (activeTab === 'backlog') await handleIgnore(fakeE, tx.id);
+      else if (activeTab === 'pushed') await handleUnsynced(fakeE, tx.id);
+    } else if (swipeDx > THRESHOLD) {
+      if (activeTab === 'backlog') await handleMarkAlreadyPushed(fakeE, tx.id);
+      else if (activeTab === 'others') await handleUnignore(fakeE, tx.id);
+    }
+    setSwipingId(null);
+    setSwipeDx(0);
+    swipeIsHorizontal.current = false;
   };
 
   const handleExportCSV = () => {
@@ -1127,19 +1174,45 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
               const isExpanded = expandedTxIds.includes(tx.id);
               const group = groups.find(g => g.id.toString() === (tx.selectedGroupId || "").toString());
               
+              const isSwiping = isMobile && swipingId === tx.id;
+              const clampedDx = Math.max(-120, Math.min(120, swipeDx));
+              const leftAction = activeTab === 'backlog' ? { label: '👻 Ignore', bg: 'hsl(0,0%,18%)' }
+                : activeTab === 'pushed' ? { label: '↩ Move to Backlog', bg: 'hsl(220,60%,30%)' }
+                : null;
+              const rightAction = activeTab === 'backlog' ? { label: '✓ Mark Pushed', bg: 'hsl(150,50%,22%)' }
+                : activeTab === 'others' ? { label: '↩ Restore', bg: 'hsl(220,60%,30%)' }
+                : null;
+
               return (
-                <div key={tx.id} className={`transaction-item glass-card animate-up stagger-${(idx % 3) + 1} ${isExpanded ? 'expanded' : ''}`} style={{ padding: 0, overflow: 'hidden', marginBottom: '0.75rem' }}>
-                    <div 
-                    className="tx-header" 
-                    onClick={() => toggleExpand(tx.id)}
-                    style={{ 
-                      padding: '0.75rem 1rem', 
-                      cursor: 'pointer', 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
+                <div key={tx.id} className={`transaction-item glass-card animate-up stagger-${(idx % 3) + 1} ${isExpanded ? 'expanded' : ''}`} style={{ padding: 0, overflow: 'hidden', marginBottom: '0.75rem', position: 'relative' }}>
+                  {/* Swipe action backgrounds */}
+                  {isSwiping && clampedDx < -15 && leftAction && (
+                    <div style={{ position: 'absolute', inset: 0, background: leftAction.bg, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '1.5rem', color: 'hsla(0,0%,85%,0.9)', fontSize: '0.85rem', fontWeight: 700, opacity: Math.min(1, Math.abs(clampedDx) / 80) }}>
+                      {leftAction.label}
+                    </div>
+                  )}
+                  {isSwiping && clampedDx > 15 && rightAction && (
+                    <div style={{ position: 'absolute', inset: 0, background: rightAction.bg, display: 'flex', alignItems: 'center', paddingLeft: '1.5rem', color: 'hsla(0,0%,85%,0.9)', fontSize: '0.85rem', fontWeight: 700, opacity: Math.min(1, Math.abs(clampedDx) / 80) }}>
+                      {rightAction.label}
+                    </div>
+                  )}
+                    <div
+                    className="tx-header"
+                    onClick={() => { if (swipeOccurred.current) { swipeOccurred.current = false; return; } toggleExpand(tx.id); }}
+                    onTouchStart={isMobile ? (e) => handleTxTouchStart(e, tx.id) : undefined}
+                    onTouchMove={isMobile ? (e) => handleTxTouchMove(e, tx.id) : undefined}
+                    onTouchEnd={isMobile ? (e) => handleTxTouchEnd(e, tx) : undefined}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       background: isExpanded ? 'hsla(0,0%,100%,0.03)' : 'transparent',
-                      transition: 'var(--transition-smooth)'
+                      transition: isSwiping ? 'none' : 'transform 0.3s ease, background var(--transition-smooth)',
+                      transform: isSwiping ? `translateX(${clampedDx}px)` : 'translateX(0)',
+                      touchAction: isMobile ? 'pan-y' : undefined,
+                      willChange: isSwiping ? 'transform' : undefined,
                     }}
                   >
                   {/* Left side: checkbox + logo + name/meta */}
