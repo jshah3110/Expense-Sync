@@ -287,12 +287,13 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                         
                 sync_cursor = res_dict.get('next_cursor', '')
                 has_more = res_dict.get('has_more', False)
-                
-            try:
-                conn.sync_cursor = sync_cursor
-            except Exception:
-                pass
-                
+
+                # Persist cursor after every page so a mid-sync failure
+                # doesn't force a full restart next time
+                if sync_cursor and conn.id:
+                    conn.sync_cursor = sync_cursor
+                    db.commit()
+
         except Exception as e:
             errors.append(f"Fatal remote hook: {str(e)}")
             print(f"Failed sync for {conn.institution_name}: {e}")
