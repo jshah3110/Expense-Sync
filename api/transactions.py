@@ -482,12 +482,14 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
                     daily_synced_target[day_str] += amount
                 # Category breakdown scoped to target month
                 if cat not in category_map:
-                    category_map[cat] = {"category": cat, "total": 0, "count": 0}
+                    category_map[cat] = {"category": cat, "total": 0, "count": 0, "synced": 0, "synced_count": 0}
                 category_map[cat]["total"] += amount
                 category_map[cat]["count"] += 1
                 if t.is_synced:
                     summary["synced_count"] += 1
                     summary["synced_total"] += amount
+                    category_map[cat]["synced"] += amount
+                    category_map[cat]["synced_count"] += 1
 
             elif t_month == prev_month:
                 summary["total_last_month"] += amount

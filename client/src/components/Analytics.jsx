@@ -107,6 +107,11 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
     setCategoryTxs([]);
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    setSelectedCategory(null);
+    setCategoryTxs([]);
+  }, [spendView]);
+
   // ── Bar click handler ─────────────────────────────────────────────────────
   const handleBarClick = (barData) => {
     if (!barData?.month) return;
@@ -114,7 +119,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
   };
 
   // ── Category drill-down ───────────────────────────────────────────────────
-  const handleCategoryClick = async (catName, targetMonth) => {
+  const handleCategoryClick = async (catName, targetMonth, syncedOnly) => {
     if (selectedCategory === catName) {
       setSelectedCategory(null);
       setCategoryTxs([]);
@@ -125,7 +130,11 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
     try {
       const res = await axios.get(`${API_BASE}/api/transactions/`);
       const filtered = res.data
-        .filter(tx => tx.category === catName && (tx.date || '').slice(0, 7) === targetMonth)
+        .filter(tx =>
+          tx.category === catName &&
+          (tx.date || '').slice(0, 7) === targetMonth &&
+          (!syncedOnly || tx.is_synced)
+        )
         .sort((a, b) => b.amount - a.amount);
       setCategoryTxs(filtered);
     } catch (e) {
@@ -152,7 +161,16 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
     );
   }
 
-  const { summary, by_category, by_month, pacing } = data;
+  const { summary, by_category: by_category_raw, by_month, pacing } = data;
+
+  // Apply Splitwise toggle to category breakdown
+  const by_category = by_category_raw
+    .map(cat => ({
+      ...cat,
+      displayTotal: spendView === 'splitwise' ? (cat.synced ?? 0) : cat.total,
+    }))
+    .filter(cat => cat.displayTotal > 0)
+    .sort((a, b) => b.displayTotal - a.displayTotal);
 
   // Filter data based on spend view (Splitwise only vs All)
   const filteredSummary = spendView === 'splitwise' ? {
@@ -492,7 +510,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={by_category} dataKey="total" nameKey="category"
+                      data={by_category} dataKey="displayTotal" nameKey="category"
                       cx="50%" cy="50%" innerRadius="65%" outerRadius="100%"
                       paddingAngle={2} stroke="none"
                       label={<PieLabel />}
@@ -527,15 +545,15 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
             {/* Category list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               {by_category.map((cat, i) => {
-                const pct = displaySummary.total_this_month > 0
-                  ? (cat.total / displaySummary.total_this_month) * 100
-                  : 0;
+                const categoryTotal = by_category.reduce((s, c) => s + c.displayTotal, 0);
+                const pct = categoryTotal > 0 ? (cat.displayTotal / categoryTotal) * 100 : 0;
                 const isOpen = selectedCategory === cat.category;
+                const syncedOnly = spendView === 'splitwise';
                 return (
                   <div key={`${summary.target_month}-${cat.category}`}>
                     {/* Category row */}
                     <div
-                      onClick={() => handleCategoryClick(cat.category, summary.target_month)}
+                      onClick={() => handleCategoryClick(cat.category, summary.target_month, syncedOnly)}
                       style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         padding: '0.875rem 1rem',
@@ -555,7 +573,7 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct.toFixed(0)}%</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.total)}</span>
+                        <span style={{ fontWeight: 600, fontSize: '1rem' }}>{fmt(cat.displayTotal)}</span>
                         <FiChevronRight size={18} style={{ color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(90deg)' : 'none', opacity: 0.6 }} />
                       </div>
                     </div>
