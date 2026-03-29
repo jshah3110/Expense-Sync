@@ -98,7 +98,6 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
   const fetchTransactions = async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/transactions/`);
-      // Reconcile field names and initialize defaults if needed
       const reconciled = res.data.map(tx => ({
         ...tx,
         selectedGroupId: tx.selectedGroupId || tx.splitwise_group_id || "",
@@ -106,8 +105,13 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
         includedMembers: tx.includedMembers || []
       }));
       setTransactions(reconciled);
+      setIsOffline(false);
+      const now = Date.now();
+      setLastCachedAt(now);
+      localStorage.setItem('cached_transactions', JSON.stringify({ data: reconciled, timestamp: now }));
     } catch (error) {
       console.error("Error fetching transactions", error);
+      setIsOffline(true);
     } finally {
       setLoading(false);
     }
@@ -142,6 +146,19 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
   };
 
   useEffect(() => {
+    // Restore cache immediately so the app feels instant during cold starts
+    try {
+      const raw = localStorage.getItem('cached_transactions');
+      if (raw && transactions.length === 0) {
+        const { data, timestamp } = JSON.parse(raw);
+        if (Array.isArray(data) && data.length > 0) {
+          setTransactions(data);
+          setLastCachedAt(timestamp);
+          setLoading(false);
+        }
+      }
+    } catch (e) {}
+
     fetchStatus();
     fetchTransactions();
   }, []);
@@ -160,6 +177,8 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
 
   const [syncDays, setSyncDays] = useState('30');
   const [syncErrors, setSyncErrors] = useState([]);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastCachedAt, setLastCachedAt] = useState(null);
 
   // ── Swipe gesture state (mobile only) ─────────────────────────────────────
   const [swipingId, setSwipingId] = useState(null);
@@ -694,6 +713,22 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
             <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
               {syncButtonContent}
             </div>
+          </div>
+        )}
+
+        {isMobile && isOffline && lastCachedAt && (
+          <div style={{
+            marginBottom: '0.85rem',
+            padding: '0.6rem 1rem',
+            borderRadius: '10px',
+            background: 'hsla(220,60%,50%,0.1)',
+            border: '1px solid hsla(220,60%,50%,0.25)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem',
+          }}>
+            <div style={{ fontSize: '0.78rem', color: 'hsla(220,60%,65%,1)' }}>
+              📶 Server offline — showing cached data from {new Date(lastCachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <button onClick={fetchTransactions} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsla(220,60%,65%,1)', fontSize: '0.78rem', fontWeight: 600, padding: 0, whiteSpace: 'nowrap' }}>Retry ↻</button>
           </div>
         )}
 

@@ -85,14 +85,25 @@ const Analytics = ({ viewMode, setViewMode, spendView, setSpendView, selectedMon
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAnalytics = useCallback(async (month) => {
-    // First load (no cached data): show full loading screen
-    // Month change (data exists): show subtle fetching indicator only
-    if (!data) setLoading(true);
-    else setIsFetching(true);
+    const cacheKey = `cached_analytics_${month || 'current'}`;
+    // Restore from cache immediately on first load
+    if (!data) {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          const { data: cached } = JSON.parse(raw);
+          if (cached) { setData(cached); setLoading(false); }
+        }
+      } catch (e) {}
+      setLoading(true);
+    } else {
+      setIsFetching(true);
+    }
     try {
       const url = `${API_BASE}/api/transactions/analytics${month ? `?month=${month}` : ''}`;
       const res = await axios.get(url);
       setData(res.data);
+      localStorage.setItem(cacheKey, JSON.stringify({ data: res.data, timestamp: Date.now() }));
     } catch (e) {
       console.error('Failed to fetch analytics', e);
     } finally {
