@@ -4,11 +4,9 @@ import { FiRefreshCw, FiArrowRight, FiActivity, FiPlus, FiX, FiChevronDown, FiTr
 import axios from 'axios';
 import API_BASE from '../config';
 
-const Dashboard = ({ theme = 'dark' }) => {
+const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, setLoading }) => {
   const isDark = theme === 'dark';
-  const [transactions, setTransactions] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [expandedTxIds, setExpandedTxIds] = useState([]);
   const [selectedTxIds, setSelectedTxIds] = useState([]);
@@ -554,13 +552,26 @@ const Dashboard = ({ theme = 'dark' }) => {
         marginBottom: isMobile ? '0' : '1rem',
       }}>
 
-        {/* Row 1: Title + Add button */}
+        {/* Row 1: Title + icon buttons (Reconcile, Add, Settings) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', marginBottom: '0.05rem', lineHeight: 1.1 }}>Transactions</h2>
             <p className="subtitle" style={{ fontSize: '0.72rem', opacity: 0.4, margin: 0 }}>Tap to review &amp; push to Splitwise</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {isMobile && (
+              <button
+                onClick={handleOpenReconcile}
+                title="Reconcile with Splitwise"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-secondary)', display: 'flex', alignItems: 'center',
+                  padding: '0.4rem', fontSize: '1.1rem', lineHeight: 1,
+                }}
+              >
+                ⟲
+              </button>
+            )}
             <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.76rem', gap: '0.3rem', minHeight: '34px', flexShrink: 0 }} onClick={() => setShowMockForm(!showMockForm)}>
               {showMockForm ? <FiX size={13} /> : <FiPlus size={13} />} {showMockForm ? 'Cancel' : 'Add'}
             </button>
@@ -572,31 +583,12 @@ const Dashboard = ({ theme = 'dark' }) => {
           </div>
         </div>
 
-        {/* Row 2: Sync Now (when bank connected) + Reconcile (always on mobile) */}
-        {isMobile && (
-          <div style={{ marginBottom: '0.85rem', display: 'flex', gap: '0.5rem' }}>
-            {isConnected && (
-              <div style={{ flex: 1, display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                {syncButtonContent}
-              </div>
-            )}
-            <button
-              onClick={handleOpenReconcile}
-              title="Match backlog transactions against Splitwise"
-              style={{
-                flex: isConnected ? 'none' : 1,
-                padding: isConnected ? '0 0.85rem' : '0.6rem',
-                borderRadius: '10px',
-                background: 'hsla(0,0%,100%,0.04)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.78rem', fontWeight: 600,
-                cursor: 'pointer', whiteSpace: 'nowrap',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
-              }}
-            >
-              ⟲ Reconcile
-            </button>
+        {/* Row 2: Sync Now full-width (mobile, when bank connected) */}
+        {isMobile && isConnected && (
+          <div style={{ marginBottom: '0.85rem' }}>
+            <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+              {syncButtonContent}
+            </div>
           </div>
         )}
 

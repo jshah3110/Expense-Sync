@@ -70,6 +70,10 @@ function App() {
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
+  // Lifted Dashboard state so it persists across navigation
+  const [transactions, setTransactions] = React.useState([]);
+  const [transactionsLoading, setTransactionsLoading] = React.useState(true);
+
   // Lifted Analytics state so it persists across navigation
   const [analyticsViewMode, setAnalyticsViewMode] = React.useState('bar');
   const [analyticsSpendView, setAnalyticsSpendView] = React.useState('splitwise');
@@ -83,7 +87,15 @@ function App() {
         <Navigation isMobile={isMobile} />
         <main className="app-container">
           <Routes>
-            <Route path="/" element={<Dashboard theme={theme} />} />
+            <Route path="/" element={
+              <Dashboard
+                theme={theme}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                loading={transactionsLoading}
+                setLoading={setTransactionsLoading}
+              />
+            } />
             <Route path="/analytics" element={
               <Analytics
                 viewMode={analyticsViewMode}
