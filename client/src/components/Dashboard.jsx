@@ -661,7 +661,7 @@ const Dashboard = ({ theme = 'dark' }) => {
         )}
 
         {/* Search + compact filters: 2-col grid on mobile to prevent truncation */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto auto auto', gap: '0.5rem', marginBottom: '0.9rem', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto auto auto auto', gap: '0.5rem', marginBottom: '0.9rem', alignItems: 'center' }}>
           <div style={{ position: 'relative', gridColumn: isMobile ? 'span 2' : 'auto' }}>
             <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.35, fontSize: '0.8rem', pointerEvents: 'none' }}>🔍</span>
             <input
@@ -695,11 +695,29 @@ const Dashboard = ({ theme = 'dark' }) => {
             <option value="amount-desc">$ High↓</option>
             <option value="amount-asc">$ Low↑</option>
           </select>
-          {/* Desktop-only Sync Now button in filter row */}
+          {/* Desktop-only Sync Now + Reconcile in filter row */}
           {!isMobile && (
-            <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)', height: '100%' }}>
-              {syncButtonContent}
-            </div>
+            <>
+              <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)', height: '100%' }}>
+                {syncButtonContent}
+              </div>
+              <button
+                onClick={handleOpenReconcile}
+                title="Match backlog transactions against Splitwise"
+                style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '10px',
+                  background: 'hsla(0,0%,100%,0.04)',
+                  border: '1px solid var(--border-light)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.78rem', fontWeight: 600,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center', gap: '0.3rem',
+                }}
+              >
+                ⟲ Reconcile
+              </button>
+            </>
           )}
         </div>
       </div>
