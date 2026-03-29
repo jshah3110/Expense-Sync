@@ -158,11 +158,13 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
   }, [datePreset, dateFrom, dateTo, sortConfig, categoryFilter, bankFilter, merchantFilter]);
 
   const [syncDays, setSyncDays] = useState('30');
+  const [syncErrors, setSyncErrors] = useState([]);
 
   const handleSyncBank = async () => {
     setIsSyncing(true);
     try {
-      await axios.get(`${API_BASE}/api/transactions/sync?days=${syncDays}`);
+      const res = await axios.get(`${API_BASE}/api/transactions/sync?days=${syncDays}`);
+      setSyncErrors(res.data.errors || []);
       await fetchTransactions();
     } catch (error) {
        console.error("Error syncing with Plaid", error);
@@ -589,6 +591,22 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
             <div style={{ display: 'flex', background: 'hsla(0,0%,100%,0.04)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
               {syncButtonContent}
             </div>
+          </div>
+        )}
+
+        {isMobile && syncErrors.length > 0 && (
+          <div style={{
+            marginBottom: '0.85rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            background: 'hsla(38,92%,50%,0.1)',
+            border: '1px solid hsla(38,92%,50%,0.3)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem',
+          }}>
+            <div style={{ fontSize: '0.8rem', color: 'hsl(38,70%,40%)', flex: 1 }}>
+              ⚠️ {syncErrors.join(' · ')}
+            </div>
+            <button onClick={() => setSyncErrors([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, fontSize: '1rem' }}>✕</button>
           </div>
         )}
 

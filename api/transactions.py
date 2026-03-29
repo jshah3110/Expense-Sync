@@ -46,6 +46,7 @@ client = plaid_api.PlaidApi(api_client)
 
 class LinkTokenRequest(BaseModel):
     redirect_uri: str = None
+    access_token: str = None  # for Plaid update mode
 
 class BulkDeleteRequest(BaseModel):
     tx_ids: list[int]
@@ -74,7 +75,11 @@ def create_link_token(req: LinkTokenRequest = None):
         
         if req and req.redirect_uri:
             request_params["redirect_uri"] = req.redirect_uri
-            
+
+        if req and req.access_token:
+            request_params["access_token"] = req.access_token
+            request_params.pop("products", None)  # not needed in update mode
+
         request = LinkTokenCreateRequest(**request_params)
         response = client.link_token_create(request)
         return {"link_token": response['link_token']}
@@ -294,6 +299,19 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                     conn.sync_cursor = sync_cursor
                     db.commit()
 
+            conn.last_sync_error = None
+
+        except plaid.ApiException as plaid_err:
+            try:
+                import json
+                err_body = json.loads(plaid_err.body)
+                error_code = err_body.get('error_code', 'PLAID_ERROR')
+            except Exception:
+                error_code = 'PLAID_ERROR'
+            conn.last_sync_error = error_code
+            db.commit()
+            errors.append(f"{conn.institution_name}: {error_code}")
+            print(f"Plaid API error for {conn.institution_name}: {error_code}")
         except Exception as e:
             errors.append(f"Fatal remote hook: {str(e)}")
             print(f"Failed sync for {conn.institution_name}: {e}")
@@ -388,6 +406,34 @@ def unignore_transaction(tx_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
+@router.patch("/connections/{connection_id}/clear_error")
+def clear_connection_error(connection_id: int, db: Session = Depends(get_db)):
+    conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    conn.last_sync_error = None
+    db.commit()
+    return {"status": "ok"}
+
+@router.post("/connections/{connection_id}/create_update_token")
+def create_update_link_token(connection_id: int, db: Session = Depends(get_db)):
+    conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    try:
+        request_params = {
+            "client_name": "Expense Tracker",
+            "country_codes": [CountryCode("US")],
+            "language": "en",
+            "user": LinkTokenCreateRequestUser(client_user_id="user-1"),
+            "access_token": conn.access_token,
+        }
+        request = LinkTokenCreateRequest(**request_params)
+        response = client.link_token_create(request)
+        return {"link_token": response['link_token']}
+    except plaid.ApiException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
     """Check if Plaid is connected and migrate tokens gracefully"""
@@ -409,7 +455,7 @@ def get_plaid_status(db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    formatted = [{"id": c.id, "institution_name": c.institution_name} for c in connections]
+    formatted = [{"id": c.id, "institution_name": c.institution_name, "last_sync_error": c.last_sync_error} for c in connections]
     connected = len(connections) > 0
     return {"connected": connected, "connections": formatted}
 

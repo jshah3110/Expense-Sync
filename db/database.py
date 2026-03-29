@@ -50,6 +50,7 @@ class BankConnection(Base):
     access_token = Column(String, unique=True, index=True)
     institution_name = Column(String)
     sync_cursor = Column(String, nullable=True)
+    last_sync_error = Column(String, nullable=True)
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -76,6 +77,12 @@ except Exception:
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE transactions ADD COLUMN is_ignored BOOLEAN DEFAULT FALSE"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN last_sync_error VARCHAR"))
 except Exception:
     pass
 

@@ -10,6 +10,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [plaidConnected, setPlaidConnected] = useState(false);
   const [plaidConnections, setPlaidConnections] = useState([]);
   const [linkToken, setLinkToken] = useState(null);
+  const [updateModeConnId, setUpdateModeConnId] = useState(null);
   const location = useLocation();
 
   const fetchStatus = async () => {
@@ -25,8 +26,15 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
     }
   };
 
-  const generateLinkToken = async () => {
+  const generateLinkToken = async (accessToken = null) => {
     try {
+      if (accessToken) {
+        // Update mode — skip redirect_uri logic, just pass access_token
+        const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, { access_token: accessToken });
+        setLinkToken(res.data.link_token);
+        return;
+      }
+
       // In OAuth flow, Plaid redirects back to this page with oauth_state_id.
       // We must not generate a new link token if we are returning from an OAuth redirect.
       const queryParams = new URLSearchParams(window.location.search);
@@ -76,12 +84,28 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
     }
   };
 
+  const handleFixConnection = async (conn) => {
+    try {
+      const res = await axios.post(`${API_BASE}/api/transactions/connections/${conn.id}/create_update_token`);
+      setLinkToken(res.data.link_token);
+      setUpdateModeConnId(conn.id);
+    } catch(e) {
+      alert('Failed to start re-authentication.');
+    }
+  };
+
   const onSuccess = async (public_token, metadata) => {
     try {
-      await axios.post(`${API_BASE}/api/transactions/set_access_token`, {
-        public_token: public_token
-      });
-      await fetchStatus();
+      if (updateModeConnId) {
+        await axios.patch(`${API_BASE}/api/transactions/connections/${updateModeConnId}/clear_error`);
+        await fetchStatus();
+        setUpdateModeConnId(null);
+      } else {
+        await axios.post(`${API_BASE}/api/transactions/set_access_token`, {
+          public_token: public_token
+        });
+        await fetchStatus();
+      }
     } catch (e) {
       console.error("Failed to set access token", e);
       alert("Failed to connect bank.");
@@ -106,6 +130,12 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
       open();
     }
   }, [ready, open]);
+
+  useEffect(() => {
+    if (ready && updateModeConnId) {
+      open();
+    }
+  }, [ready, updateModeConnId]);
 
   return (
     <div className="animate-fade-in stagger-1">
@@ -191,33 +221,68 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
 
           {plaidConnections.length > 0 && (
             <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {plaidConnections.map(c => (
-                <div key={c.id} style={{
-                  background: 'var(--surface-overlay)', border: '1px solid var(--border-light)',
-                  padding: '0.6rem 0.9rem', borderRadius: '10px', fontSize: '0.85rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.1rem' }}>🏦</span>
-                    <span style={{ fontWeight: 600 }}>{c.institution_name}</span>
-                    <FiCheckCircle style={{ color: '#10b981' }} />
+              {plaidConnections.map(c => {
+                const errorMsg = c.last_sync_error
+                  ? c.last_sync_error === 'ITEM_LOGIN_REQUIRED'
+                    ? 'Bank requires re-authentication'
+                    : c.last_sync_error === 'INVALID_ACCESS_TOKEN'
+                    ? 'Connection expired'
+                    : `Sync error: ${c.last_sync_error}`
+                  : null;
+                return (
+                  <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <div style={{
+                      background: 'var(--surface-overlay)', border: `1px solid ${errorMsg ? 'hsla(38,92%,50%,0.4)' : 'var(--border-light)'}`,
+                      padding: '0.6rem 0.9rem', borderRadius: '10px', fontSize: '0.85rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1.1rem' }}>🏦</span>
+                        <span style={{ fontWeight: 600 }}>{c.institution_name}</span>
+                        {errorMsg
+                          ? <span style={{ color: 'hsl(38,92%,50%)', fontSize: '1rem' }}>⚠️</span>
+                          : <FiCheckCircle style={{ color: '#10b981' }} />
+                        }
+                      </div>
+                      <button
+                        onClick={() => handleDeleteConnection(c.id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-muted)', padding: '0.2rem 0.4rem',
+                          display: 'flex', alignItems: 'center', borderRadius: '6px',
+                          transition: 'color 0.2s, background 0.2s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'hsla(0,100%,60%,0.08)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; }}
+                        title="Remove connection"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
+                    {errorMsg && (
+                      <div style={{
+                        padding: '0.5rem 0.9rem',
+                        borderRadius: '8px',
+                        background: 'hsla(38,92%,50%,0.08)',
+                        border: '1px solid hsla(38,92%,50%,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
+                      }}>
+                        <span style={{ fontSize: '0.78rem', color: 'hsl(38,70%,40%)' }}>{errorMsg}</span>
+                        <button
+                          onClick={() => handleFixConnection(c)}
+                          style={{
+                            background: 'hsl(38,92%,50%)', border: 'none', cursor: 'pointer',
+                            color: '#fff', padding: '0.25rem 0.65rem', borderRadius: '6px',
+                            fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Re-authenticate
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleDeleteConnection(c.id)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--text-muted)', padding: '0.2rem 0.4rem',
-                      display: 'flex', alignItems: 'center', borderRadius: '6px',
-                      transition: 'color 0.2s, background 0.2s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'hsla(0,100%,60%,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; }}
-                    title="Remove connection"
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
