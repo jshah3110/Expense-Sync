@@ -121,20 +121,14 @@ Open `http://localhost:5173` and connect your bank.
 
 ## App screens
 
-```
-Dashboard               Analytics               Settings
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ [Backlog][Pushed]│    │ Spending by      │    │ Connected Banks │
-│                 │    │ Category (chart) │    │  • Chase ✓      │
-│ ☐ Chipotle $14  │    │                 │    │  • Add Bank +   │
-│ ☐ Uber   $22   │    │ Food      ████░ │    │                 │
-│ ☐ Amazon  $67  │    │ Transport ██░░░ │    │ Splitwise       │
-│                 │    │ Shopping  ███░░ │    │  • Connected ✓  │
-│ [Export CSV]    │    │                 │    │  • Pull Expenses│
-│ [Bulk Actions]  │    │ Click to set    │    │                 │
-└─────────────────┘    │ monthly budgets │    └─────────────────┘
-                       └─────────────────┘
-```
+**Dashboard** — review transactions, filter by bank/category, export CSV, push to Splitwise
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Analytics** — monthly spending chart, per-category breakdown, set budget limits
+![Analytics](docs/screenshots/analytics.png)
+
+**Settings** — connect banks via Plaid, link Splitwise account, toggle dark mode
+![Settings](docs/screenshots/settings.png)
 
 ---
 
