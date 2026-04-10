@@ -69,14 +69,13 @@ class MockTransactionRequest(BaseModel):
 @router.post("/create_link_token")
 def create_link_token(req: LinkTokenRequest = None):
     try:
-        # Use a more unique user ID to avoid "Remember Me" friction in sandbox
-        unique_user_id = f"user-{datetime.datetime.now().strftime('%M%S')}"
+        # Use a stable user ID in production for better session/item consistency
+        stable_user_id = "user-1"
         request_params = {
-            "products": [Products("transactions")],
             "client_name": "Expense Tracker",
             "country_codes": [CountryCode("US")],
             "language": "en",
-            "user": LinkTokenCreateRequestUser(client_user_id=unique_user_id)
+            "user": LinkTokenCreateRequestUser(client_user_id=stable_user_id)
         }
         
         if req and req.redirect_uri:
@@ -84,19 +83,25 @@ def create_link_token(req: LinkTokenRequest = None):
 
         if req and req.access_token:
             request_params["access_token"] = req.access_token
-            request_params.pop("products", None)  # not needed in update mode
-
-        # We start with transactions as the base. 
-        # We also try to add balance and liabilities which helps some institutions (like Bilt) show the CC.
-        # However, many accounts don't have liabilities enabled, so we use a fallback loop.
-        current_products = [Products("transactions"), Products("balance"), Products("liabilities")]
+            # Products are not allowed when updating an existing item
+            request_params.pop("products", None)
+            current_products = []
+        else:
+            # We include 'auth' and 'liabilities' to ensure credit cards (like Bilt) are visible
+            current_products = [Products("transactions"), Products("auth"), Products("balance"), Products("liabilities")]
         
         while True:
             try:
-                request_params["products"] = current_products
+                if current_products:
+                    request_params["products"] = current_products
+                
                 request = LinkTokenCreateRequest(**request_params)
                 response = client.link_token_create(request)
-                return {"link_token": response['link_token']}
+                
+                return {
+                    "link_token": response['link_token'],
+                    "oauth_redirect_missing": "redirect_uri" not in request_params
+                }
             except plaid.ApiException as e:
                 import json as _json
                 body = {}
@@ -116,7 +121,6 @@ def create_link_token(req: LinkTokenRequest = None):
 
                 # If a product is the problem, remove it and try again
                 if error_code == 'INVALID_PRODUCT':
-                    # Extract which product failed from message if possible, or just pop the last extra
                     failed_product = None
                     for p in ["auth", "liabilities", "balance"]:
                         if p in error_msg:
@@ -502,21 +506,40 @@ def create_update_link_token(connection_id: int, req: UpdateLinkTokenRequest = N
             "user": LinkTokenCreateRequestUser(client_user_id="user-1"),
             "access_token": conn.access_token,
         }
-        # Pass redirect_uri for OAuth institutions (e.g. Bilt) during re-authentication
         if req and req.redirect_uri:
             request_params["redirect_uri"] = req.redirect_uri
-        request = LinkTokenCreateRequest(**request_params)
-        response = client.link_token_create(request)
-        return {"link_token": response['link_token']}
-    except plaid.ApiException as e:
-        import json as _json
-        body = {}
-        try:
-            body = _json.loads(e.body)
-        except Exception:
-            pass
-        detail = body.get('error_message') or body.get('error_code') or str(e)
-        raise HTTPException(status_code=400, detail=detail)
+        
+        while True:
+            try:
+                request = LinkTokenCreateRequest(**request_params)
+                response = client.link_token_create(request)
+                return {
+                    "link_token": response['link_token'],
+                    "oauth_redirect_missing": "redirect_uri" not in request_params
+                }
+            except plaid.ApiException as e:
+                import json as _json
+                body = {}
+                try:
+                    body = _json.loads(e.body)
+                except Exception:
+                    pass
+                
+                error_code = body.get('error_code', '')
+                error_msg = body.get('error_message', '').lower()
+
+                # Robust handling of redirect URIs in update mode too
+                if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
+                    print(f"[Plaid] update_mode redirect_uri rejected, retrying without it.")
+                    request_params.pop('redirect_uri')
+                    continue
+                
+                detail = body.get('error_message') or body.get('error_code') or str(e)
+                raise HTTPException(status_code=400, detail=detail)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
