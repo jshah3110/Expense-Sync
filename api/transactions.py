@@ -78,8 +78,10 @@ def create_link_token(req: LinkTokenRequest = None):
             "user": LinkTokenCreateRequestUser(client_user_id=stable_user_id)
         }
         
+        redirect_status = "omitted"
         if req and req.redirect_uri:
             request_params["redirect_uri"] = req.redirect_uri
+            redirect_status = "accepted"
 
         if req and req.access_token:
             request_params["access_token"] = req.access_token
@@ -100,7 +102,9 @@ def create_link_token(req: LinkTokenRequest = None):
                 
                 return {
                     "link_token": response['link_token'],
-                    "oauth_redirect_missing": "redirect_uri" not in request_params
+                    "oauth_redirect_missing": "redirect_uri" not in request_params,
+                    "redirect_uri_status": redirect_status,
+                    "accepted_products": [p.value for p in current_products]
                 }
             except plaid.ApiException as e:
                 import json as _json
@@ -113,16 +117,17 @@ def create_link_token(req: LinkTokenRequest = None):
                 error_code = body.get('error_code', '')
                 error_msg = body.get('error_message', '').lower()
 
-                # If the redirect_uri is the problem, try again without it (OAuth will fail but basic banks work)
+                # If the redirect_uri is the problem, try again without it (OAuth will fail for Bilt)
                 if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
                     print(f"[Plaid] redirect_uri rejected, retrying without it.")
                     request_params.pop('redirect_uri')
+                    redirect_status = "rejected"
                     continue
 
                 # If a product is the problem, remove it and try again
                 if error_code == 'INVALID_PRODUCT':
                     failed_product = None
-                    for p in ["auth", "liabilities", "balance"]:
+                    for p in ["auth", "liabilities", "balance", "transactions"]:
                         if p in error_msg:
                             failed_product = p
                             break
@@ -506,8 +511,11 @@ def create_update_link_token(connection_id: int, req: UpdateLinkTokenRequest = N
             "user": LinkTokenCreateRequestUser(client_user_id="user-1"),
             "access_token": conn.access_token,
         }
+        
+        redirect_status = "omitted"
         if req and req.redirect_uri:
             request_params["redirect_uri"] = req.redirect_uri
+            redirect_status = "accepted"
         
         while True:
             try:
@@ -515,7 +523,9 @@ def create_update_link_token(connection_id: int, req: UpdateLinkTokenRequest = N
                 response = client.link_token_create(request)
                 return {
                     "link_token": response['link_token'],
-                    "oauth_redirect_missing": "redirect_uri" not in request_params
+                    "oauth_redirect_missing": "redirect_uri" not in request_params,
+                    "redirect_uri_status": redirect_status,
+                    "accepted_products": [] # Products not allowed in update mode
                 }
             except plaid.ApiException as e:
                 import json as _json
@@ -532,6 +542,7 @@ def create_update_link_token(connection_id: int, req: UpdateLinkTokenRequest = N
                 if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
                     print(f"[Plaid] update_mode redirect_uri rejected, retrying without it.")
                     request_params.pop('redirect_uri')
+                    redirect_status = "rejected"
                     continue
                 
                 detail = body.get('error_message') or body.get('error_code') or str(e)

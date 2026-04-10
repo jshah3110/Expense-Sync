@@ -12,6 +12,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [plaidConnected, setPlaidConnected] = useState(false);
   const [plaidConnections, setPlaidConnections] = useState([]);
   const [linkToken, setLinkToken] = useState(null);
+  const [linkTokenMetadata, setLinkTokenMetadata] = useState(null);
   const [updateModeConnId, setUpdateModeConnId] = useState(null);
   const [oauthRedirectMissing, setOauthRedirectMissing] = useState(false);
   const location = useLocation();
@@ -57,6 +58,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
 
       const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, body);
       setLinkToken(res.data.link_token);
+      setLinkTokenMetadata(res.data);
       localStorage.setItem('plaid_link_token', res.data.link_token);
       // Warn if redirect_uri isn't registered — OAuth banks like Bilt will fail
       if (res.data.oauth_redirect_missing) {
@@ -117,6 +119,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
         body
       );
       setLinkToken(res.data.link_token);
+      setLinkTokenMetadata(res.data);
       setUpdateModeConnId(conn.id);
     } catch(e) {
       const msg = e?.response?.data?.detail || 'Failed to start re-authentication.';
@@ -352,6 +355,58 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Plaid Health Diagnostics */}
+          {linkTokenMetadata && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '1rem',
+              borderRadius: '12px',
+              background: 'var(--bg)',
+              border: '1px solid var(--border-light)',
+              fontSize: '0.85rem'
+            }}>
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                🔍 Integration Health
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.5rem' }}>
+                {['transactions', 'auth', 'balance', 'liabilities'].map(prod => {
+                  const isAccepted = linkTokenMetadata.accepted_products?.includes(prod);
+                  return (
+                    <div key={prod} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isAccepted ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: isAccepted ? '#10b981' : '#ef4444' }} />
+                      <span style={{ textTransform: 'capitalize' }}>{prod}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: linkTokenMetadata.redirect_uri_status === 'accepted' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  <div style={{ 
+                    width: 8, height: 8, borderRadius: '50%', 
+                    background: linkTokenMetadata.redirect_uri_status === 'accepted' ? '#10b981' : linkTokenMetadata.redirect_uri_status === 'rejected' ? '#ef4444' : '#6b7280' 
+                  }} />
+                  <span>OAuth Redirect</span>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-light)', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {!linkTokenMetadata.accepted_products?.includes('liabilities') && (
+                  <p style={{ color: 'hsl(0,70%,60%)', marginBottom: '0.4rem' }}>
+                    <strong>⚠️ Liabilities Disabled:</strong> Credit cards (like Bilt) may not show up. <strong>Enable "Liabilities"</strong> in your Plaid Dashboard (Production).
+                  </p>
+                )}
+                {linkTokenMetadata.redirect_uri_status === 'rejected' && (
+                  <p style={{ color: 'hsl(38,70%,40%)', marginBottom: '0.4rem' }}>
+                    <strong>⚠️ OAuth Rejected:</strong> Banks like Bilt cannot link. Add <code>{window.location.href.split('?')[0]}</code> to <strong>Allowed Redirect URIs</strong> in your Plaid Dashboard.
+                  </p>
+                )}
+                {linkTokenMetadata.accepted_products?.includes('liabilities') && linkTokenMetadata.redirect_uri_status === 'accepted' && (
+                  <p style={{ color: '#10b981' }}>
+                    ✨ All core systems active for Bilt Rewards.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
