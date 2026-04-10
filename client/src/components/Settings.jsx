@@ -379,7 +379,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
               💡 Not finding your card? Search by servicer:
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-              <span><strong style={{ color: 'var(--text-primary)' }}>Bilt Mastercard</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>Cardless</code> (not "Bilt Rewards")</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Bilt Mastercard</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>Bilt Rewards</code></span>
               <span><strong style={{ color: 'var(--text-primary)' }}>Apple Card</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>Goldman Sachs</code></span>
               <span><strong style={{ color: 'var(--text-primary)' }}>Venmo / PayPal</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>PayPal</code></span>
             </div>
