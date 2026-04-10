@@ -72,7 +72,7 @@ def create_link_token(req: LinkTokenRequest = None):
         # Use a more unique user ID to avoid "Remember Me" friction in sandbox
         unique_user_id = f"user-{datetime.datetime.now().strftime('%M%S')}"
         request_params = {
-            "products": [Products("transactions")],
+            "products": [Products("auth"), Products("transactions")],
             "client_name": "Expense Tracker",
             "country_codes": [CountryCode("US")],
             "language": "en",
