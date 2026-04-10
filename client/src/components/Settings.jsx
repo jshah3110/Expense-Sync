@@ -13,6 +13,7 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [plaidConnections, setPlaidConnections] = useState([]);
   const [linkToken, setLinkToken] = useState(null);
   const [updateModeConnId, setUpdateModeConnId] = useState(null);
+  const [oauthRedirectMissing, setOauthRedirectMissing] = useState(false);
   const location = useLocation();
 
   const fetchStatus = async () => {
@@ -57,6 +58,12 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
       const res = await axios.post(`${API_BASE}/api/transactions/create_link_token`, body);
       setLinkToken(res.data.link_token);
       localStorage.setItem('plaid_link_token', res.data.link_token);
+      // Warn if redirect_uri isn't registered — OAuth banks like Bilt will fail
+      if (res.data.oauth_redirect_missing) {
+        setOauthRedirectMissing(true);
+      } else {
+        setOauthRedirectMissing(false);
+      }
     } catch (e) {
       console.error("Failed to generate link token", e);
     }
@@ -101,11 +108,19 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
 
   const handleFixConnection = async (conn) => {
     try {
-      const res = await axios.post(`${API_BASE}/api/transactions/connections/${conn.id}/create_update_token`);
+      // Pass redirect_uri so OAuth institutions (e.g. Bilt) can complete the OAuth flow
+      const currentUrl = window.location.href.split('?')[0];
+      const isLocalhost = currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1');
+      const body = isLocalhost ? {} : { redirect_uri: currentUrl };
+      const res = await axios.post(
+        `${API_BASE}/api/transactions/connections/${conn.id}/create_update_token`,
+        body
+      );
       setLinkToken(res.data.link_token);
       setUpdateModeConnId(conn.id);
     } catch(e) {
-      alert('Failed to start re-authentication.');
+      const msg = e?.response?.data?.detail || 'Failed to start re-authentication.';
+      alert(msg);
     }
   };
 
@@ -253,6 +268,26 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
             )}
           </div>
 
+          {/* OAuth redirect_uri warning — shown when Bilt-like OAuth banks can't complete login */}
+          {oauthRedirectMissing && (
+            <div style={{
+              marginBottom: '1rem',
+              padding: '0.65rem 0.9rem',
+              borderRadius: '10px',
+              background: 'hsla(38,92%,50%,0.08)',
+              border: '1px solid hsla(38,92%,50%,0.3)',
+              fontSize: '0.8rem',
+              lineHeight: 1.5,
+            }}>
+              <span style={{ fontWeight: 700, color: 'hsl(38,70%,40%)' }}>⚠️ OAuth banks (e.g. Bilt) can't connect yet.</span>
+              <br />
+              <span style={{ color: 'var(--text-secondary)' }}>
+                Register <code style={{ fontFamily: 'monospace', background: 'var(--surface-overlay)', padding: '0 4px', borderRadius: 3 }}>{window.location.href.split('?')[0]}</code> as an allowed redirect URI in your{' '}
+                <a href="https://dashboard.plaid.com" target="_blank" rel="noreferrer" style={{ color: 'hsl(220,90%,65%)', textDecoration: 'underline' }}>Plaid dashboard</a>.
+              </span>
+            </div>
+          )}
+
           {plaidConnections.length > 0 && (
             <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {plaidConnections.map(c => {
@@ -328,6 +363,27 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
           >
             <FiLink2 /> {plaidConnected ? 'Connect Another Bank' : 'Connect Bank via Plaid'}
           </button>
+
+          {/* Institution search tips */}
+          <div style={{
+            marginTop: '0.85rem',
+            padding: '0.65rem 0.9rem',
+            borderRadius: '10px',
+            background: 'var(--surface-overlay)',
+            border: '1px solid var(--border-light)',
+            fontSize: '0.78rem',
+            lineHeight: 1.6,
+            color: 'var(--text-secondary)',
+          }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem' }}>
+              💡 Not finding your card? Search by servicer:
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Bilt Mastercard</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>Cardless</code> (not "Bilt Rewards")</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Apple Card</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>Goldman Sachs</code></span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Venmo / PayPal</strong> → search <code style={{ background: 'var(--bg)', padding: '0 4px', borderRadius: 3, fontSize: '0.75rem' }}>PayPal</code></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

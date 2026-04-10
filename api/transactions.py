@@ -48,6 +48,9 @@ class LinkTokenRequest(BaseModel):
     redirect_uri: str = None
     access_token: str = None  # for Plaid update mode
 
+class UpdateLinkTokenRequest(BaseModel):
+    redirect_uri: str = None
+
 class BulkDeleteRequest(BaseModel):
     tx_ids: list[int]
 
@@ -83,11 +86,37 @@ def create_link_token(req: LinkTokenRequest = None):
             request_params["access_token"] = req.access_token
             request_params.pop("products", None)  # not needed in update mode
 
-        request = LinkTokenCreateRequest(**request_params)
-        response = client.link_token_create(request)
-        return {"link_token": response['link_token']}
+        try:
+            request = LinkTokenCreateRequest(**request_params)
+            response = client.link_token_create(request)
+            return {"link_token": response['link_token']}
+        except plaid.ApiException as inner_e:
+            import json as _json
+            body = {}
+            try:
+                body = _json.loads(inner_e.body)
+            except Exception:
+                pass
+            error_code = body.get('error_code', '')
+            # If redirect_uri is not registered, retry without it so non-OAuth banks still work.
+            # OAuth banks (like Bilt) will still need the URI registered in the Plaid dashboard.
+            if error_code == 'INVALID_FIELD' and 'redirect' in body.get('error_message', '').lower() and request_params.get('redirect_uri'):
+                print(f"[Plaid] redirect_uri '{request_params['redirect_uri']}' not registered in Plaid dashboard. "
+                      f"OAuth institutions (e.g. Bilt) will fail until you register it at dashboard.plaid.com")
+                request_params.pop('redirect_uri')
+                request = LinkTokenCreateRequest(**request_params)
+                response = client.link_token_create(request)
+                return {"link_token": response['link_token'], "oauth_redirect_missing": True}
+            raise
     except plaid.ApiException as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        import json as _json
+        body = {}
+        try:
+            body = _json.loads(e.body)
+        except Exception:
+            pass
+        detail = body.get('error_message') or body.get('error_code') or str(e)
+        raise HTTPException(status_code=400, detail=detail)
 
 @router.post("/set_access_token")
 def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db)):
@@ -437,7 +466,7 @@ def clear_connection_error(connection_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @router.post("/connections/{connection_id}/create_update_token")
-def create_update_link_token(connection_id: int, db: Session = Depends(get_db)):
+def create_update_link_token(connection_id: int, req: UpdateLinkTokenRequest = None, db: Session = Depends(get_db)):
     conn = db.query(BankConnection).filter(BankConnection.id == connection_id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -449,11 +478,21 @@ def create_update_link_token(connection_id: int, db: Session = Depends(get_db)):
             "user": LinkTokenCreateRequestUser(client_user_id="user-1"),
             "access_token": conn.access_token,
         }
+        # Pass redirect_uri for OAuth institutions (e.g. Bilt) during re-authentication
+        if req and req.redirect_uri:
+            request_params["redirect_uri"] = req.redirect_uri
         request = LinkTokenCreateRequest(**request_params)
         response = client.link_token_create(request)
         return {"link_token": response['link_token']}
     except plaid.ApiException as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        import json as _json
+        body = {}
+        try:
+            body = _json.loads(e.body)
+        except Exception:
+            pass
+        detail = body.get('error_message') or body.get('error_code') or str(e)
+        raise HTTPException(status_code=400, detail=detail)
 
 @router.get("/status")
 def get_plaid_status(db: Session = Depends(get_db)):
