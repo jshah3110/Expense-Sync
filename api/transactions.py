@@ -86,37 +86,61 @@ def create_link_token(req: LinkTokenRequest = None):
             request_params["access_token"] = req.access_token
             request_params.pop("products", None)  # not needed in update mode
 
-        try:
-            request = LinkTokenCreateRequest(**request_params)
-            response = client.link_token_create(request)
-            return {"link_token": response['link_token']}
-        except plaid.ApiException as inner_e:
-            import json as _json
-            body = {}
+        # We start with transactions as the base. 
+        # We also try to add balance and liabilities which helps some institutions (like Bilt) show the CC.
+        # However, many accounts don't have liabilities enabled, so we use a fallback loop.
+        current_products = [Products("transactions"), Products("balance"), Products("liabilities")]
+        
+        while True:
             try:
-                body = _json.loads(inner_e.body)
-            except Exception:
-                pass
-            error_code = body.get('error_code', '')
-            # If redirect_uri is not registered, retry without it so non-OAuth banks still work.
-            # OAuth banks (like Bilt) will still need the URI registered in the Plaid dashboard.
-            if error_code == 'INVALID_FIELD' and 'redirect' in body.get('error_message', '').lower() and request_params.get('redirect_uri'):
-                print(f"[Plaid] redirect_uri '{request_params['redirect_uri']}' not registered in Plaid dashboard. "
-                      f"OAuth institutions (e.g. Bilt) will fail until you register it at dashboard.plaid.com")
-                request_params.pop('redirect_uri')
+                request_params["products"] = current_products
                 request = LinkTokenCreateRequest(**request_params)
                 response = client.link_token_create(request)
-                return {"link_token": response['link_token'], "oauth_redirect_missing": True}
-            raise
-    except plaid.ApiException as e:
-        import json as _json
-        body = {}
-        try:
-            body = _json.loads(e.body)
-        except Exception:
-            pass
-        detail = body.get('error_message') or body.get('error_code') or str(e)
-        raise HTTPException(status_code=400, detail=detail)
+                return {"link_token": response['link_token']}
+            except plaid.ApiException as e:
+                import json as _json
+                body = {}
+                try:
+                    body = _json.loads(e.body)
+                except Exception:
+                    pass
+                
+                error_code = body.get('error_code', '')
+                error_msg = body.get('error_message', '').lower()
+
+                # If the redirect_uri is the problem, try again without it (OAuth will fail but basic banks work)
+                if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
+                    print(f"[Plaid] redirect_uri rejected, retrying without it.")
+                    request_params.pop('redirect_uri')
+                    continue
+
+                # If a product is the problem, remove it and try again
+                if error_code == 'INVALID_PRODUCT':
+                    # Extract which product failed from message if possible, or just pop the last extra
+                    failed_product = None
+                    for p in ["auth", "liabilities", "balance"]:
+                        if p in error_msg:
+                            failed_product = p
+                            break
+                    
+                    if failed_product:
+                        print(f"[Plaid] Product '{failed_product}' not enabled, removing from request.")
+                        current_products = [p for p in current_products if p.value != failed_product]
+                    elif len(current_products) > 1:
+                        # Fallback: remove the last product that isn't transactions
+                        remover = current_products.pop()
+                        print(f"[Plaid] Retrying without product: {remover.value}")
+                    else:
+                        raise # Can't even do transactions? Raise it.
+                    continue
+                
+                # If we get here, it's an unrecoverable error
+                detail = body.get('error_message') or body.get('error_code') or str(e)
+                raise HTTPException(status_code=400, detail=detail)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/set_access_token")
 def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db)):
