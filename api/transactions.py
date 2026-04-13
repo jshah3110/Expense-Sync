@@ -311,6 +311,13 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 except AttributeError:
                     res_dict = response
 
+                # DEBUG: Log sync progress
+                added_count = len(res_dict.get('added', []))
+                modified_count = len(res_dict.get('modified', []))
+                removed_count = len(res_dict.get('removed', []))
+                account_ids = set(tx.get('account_id') for tx in res_dict.get('added', []))
+                print(f"[SYNC] {conn.institution_name}: +{added_count} ~{modified_count} -{removed_count} | Accounts: {account_ids}")
+
                 for p_tx in res_dict.get('added', []):
                     try:
                         mapped = normalize_plaid_transaction(p_tx)
@@ -371,15 +378,17 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 import json
                 err_body = json.loads(plaid_err.body)
                 error_code = err_body.get('error_code', 'PLAID_ERROR')
+                error_msg = err_body.get('error_message', '')
             except Exception:
                 error_code = 'PLAID_ERROR'
+                error_msg = str(plaid_err)
             conn.last_sync_error = error_code
             db.commit()
-            errors.append(f"{conn.institution_name}: {error_code}")
-            print(f"Plaid API error for {conn.institution_name}: {error_code}")
+            errors.append(f"{conn.institution_name}: {error_code} — {error_msg}")
+            print(f"[SYNC ERROR] {conn.institution_name}: {error_code} — {error_msg}")
         except Exception as e:
             errors.append(f"Fatal remote hook: {str(e)}")
-            print(f"Failed sync for {conn.institution_name}: {e}")
+            print(f"[SYNC FATAL] {conn.institution_name}: {e}")
 
     db.commit()
     return {"status": "success", "added": total_added, "transactions": all_transactions_added, "errors": errors}
@@ -495,6 +504,7 @@ def clear_connection_error(connection_id: int, db: Session = Depends(get_db)):
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     conn.last_sync_error = None
+    conn.sync_cursor = None  # Reset cursor so full sync runs after re-authentication
     db.commit()
     return {"status": "ok"}
 
@@ -557,7 +567,7 @@ def get_plaid_status(db: Session = Depends(get_db)):
     """Check if Plaid is connected and migrate tokens gracefully"""
     connections = db.query(BankConnection).all()
     user = db.query(UserModel).filter(UserModel.id == 1).first()
-    
+
     if len(connections) == 0 and user and user.plaid_access_token:
         # Zero-Friction Migration Array Backfilling!
         try:
@@ -565,7 +575,7 @@ def get_plaid_status(db: Session = Depends(get_db)):
             institution_id = item_response['item']['institution_id']
             inst_req = InstitutionsGetByIdRequest(institution_id=institution_id, country_codes=[CountryCode('US')])
             bank_name = client.institutions_get_by_id(inst_req)['institution']['name']
-            
+
             new_conn = BankConnection(access_token=user.plaid_access_token, institution_name=bank_name)
             db.add(new_conn)
             db.commit()
@@ -573,7 +583,32 @@ def get_plaid_status(db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    formatted = [{"id": c.id, "institution_name": c.institution_name, "last_sync_error": c.last_sync_error} for c in connections]
+    formatted = []
+    for c in connections:
+        conn_info = {
+            "id": c.id,
+            "institution_name": c.institution_name,
+            "last_sync_error": c.last_sync_error,
+            "plaid_item_error": None,
+            "available_products": [],
+            "billed_products": [],
+            "needs_reconnect": False
+        }
+        # Check live Plaid item status to catch ITEM_LOGIN_REQUIRED etc.
+        try:
+            item_resp = client.item_get(ItemGetRequest(access_token=c.access_token))
+            item = item_resp.to_dict().get('item', {}) if hasattr(item_resp, 'to_dict') else item_resp.get('item', {})
+            item_error = item.get('error')
+            conn_info["plaid_item_error"] = item_error.get('error_code') if item_error else None
+            conn_info["available_products"] = [p.value if hasattr(p, 'value') else str(p) for p in item.get('available_products', [])]
+            conn_info["billed_products"] = [p.value if hasattr(p, 'value') else str(p) for p in item.get('billed_products', [])]
+            conn_info["needs_reconnect"] = conn_info["plaid_item_error"] in ["ITEM_LOGIN_REQUIRED", "INVALID_ACCESS_TOKEN"]
+        except Exception as e:
+            conn_info["plaid_item_error"] = f"status_check_failed: {str(e)}"
+            conn_info["needs_reconnect"] = True
+
+        formatted.append(conn_info)
+
     connected = len(connections) > 0
     return {"connected": connected, "connections": formatted}
 

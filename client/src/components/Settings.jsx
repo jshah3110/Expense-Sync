@@ -294,13 +294,17 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
           {plaidConnections.length > 0 && (
             <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {plaidConnections.map(c => {
-                const errorMsg = c.last_sync_error
-                  ? c.last_sync_error === 'ITEM_LOGIN_REQUIRED'
+                // Use live Plaid item error if available, fall back to last_sync_error
+                const activeError = c.plaid_item_error || c.last_sync_error;
+                const needsReconnect = c.needs_reconnect || activeError === 'ITEM_LOGIN_REQUIRED' || activeError === 'INVALID_ACCESS_TOKEN';
+                const errorMsg = activeError
+                  ? activeError === 'ITEM_LOGIN_REQUIRED'
                     ? 'Bank requires re-authentication'
-                    : c.last_sync_error === 'INVALID_ACCESS_TOKEN'
-                    ? 'Connection expired'
-                    : `Sync error: ${c.last_sync_error}`
+                    : activeError === 'INVALID_ACCESS_TOKEN'
+                    ? 'Connection expired — please re-authenticate'
+                    : `Sync error: ${activeError}`
                   : null;
+                const hasLiabilities = c.billed_products?.includes('liabilities') || c.available_products?.includes('liabilities');
                 return (
                   <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <div style={{
@@ -315,6 +319,11 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
                           ? <span style={{ color: 'hsl(38,92%,50%)', fontSize: '1rem' }}>⚠️</span>
                           : <FiCheckCircle style={{ color: '#10b981' }} />
                         }
+                        {hasLiabilities && !errorMsg && (
+                          <span style={{ fontSize: '0.7rem', background: 'hsla(150,60%,40%,0.15)', color: '#10b981', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                            CC
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => handleDeleteConnection(c.id)}
@@ -349,6 +358,27 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
                           }}
                         >
                           Re-authenticate
+                        </button>
+                      </div>
+                    )}
+                    {!errorMsg && needsReconnect && (
+                      <div style={{
+                        padding: '0.5rem 0.9rem',
+                        borderRadius: '8px',
+                        background: 'hsla(220,90%,50%,0.08)',
+                        border: '1px solid hsla(220,90%,50%,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
+                      }}>
+                        <span style={{ fontSize: '0.78rem', color: 'hsl(220,70%,60%)' }}>Re-link to enable CC products</span>
+                        <button
+                          onClick={() => handleFixConnection(c)}
+                          style={{
+                            background: 'hsl(220,90%,60%)', border: 'none', cursor: 'pointer',
+                            color: '#fff', padding: '0.25rem 0.65rem', borderRadius: '6px',
+                            fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Re-link
                         </button>
                       </div>
                     )}
