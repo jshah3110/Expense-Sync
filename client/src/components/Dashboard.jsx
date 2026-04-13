@@ -2081,7 +2081,7 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
         const SELECT_STYLE = { minHeight: 'unset', padding: '0.5rem 1.5rem 0.5rem 0.7rem', fontSize: '0.82rem', width: '100%', boxSizing: 'border-box' };
 
         return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
             <div className="glass-card" style={{ width: '100%', maxWidth: '520px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
 
               {/* Header */}
