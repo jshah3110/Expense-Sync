@@ -98,15 +98,18 @@ def create_link_token(req: LinkTokenRequest = None):
             try:
                 if current_products:
                     request_params["products"] = current_products
-                
-                request = LinkTokenCreateRequest(**request_params)
+                    
+                # Filter out internal metadata from Plaid request params
+                plaid_params = {k: v for k, v in request_params.items() if k != "rejected_products"}
+                request = LinkTokenCreateRequest(**plaid_params)
                 response = client.link_token_create(request)
                 
                 return {
                     "link_token": response['link_token'],
                     "oauth_redirect_missing": "redirect_uri" not in request_params,
                     "redirect_uri_status": redirect_status,
-                    "accepted_products": [p.value for p in current_products]
+                    "accepted_products": [p.value for p in current_products],
+                    "rejected_products": request_params.get("rejected_products", [])
                 }
             except plaid.ApiException as e:
                 import json as _json
@@ -119,12 +122,13 @@ def create_link_token(req: LinkTokenRequest = None):
                 error_code = body.get('error_code', '')
                 error_msg = body.get('error_message', '').lower()
 
-                # FOR BILT: Redirect URI is MANDATORY for OAuth flow.
-                # We no longer pop it automatically since user has full product access.
+                # FOR BILT: Redirect URI is highly recommended for OAuth flow.
+                # If it fails, we pop it and warn the user via metadata.
                 if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
-                    print(f"[Plaid] redirect_uri rejected, check Plaid Dashboard registration for {req.redirect_uri}")
-                    # Allow the error to propagate so the user knows they need to fix their dashboard config
-                    raise HTTPException(status_code=400, detail="Redirect URI is mandatory but rejected by Plaid. Check your dashboard config.")
+                    print(f"[Plaid] redirect_uri rejected, check Plaid Dashboard registration for {request_params.get('redirect_uri')}")
+                    request_params.pop('redirect_uri')
+                    redirect_status = "rejected"
+                    continue
 
                 # If a product is the problem, remove it and try again
                 if error_code == 'INVALID_PRODUCT':
@@ -135,12 +139,13 @@ def create_link_token(req: LinkTokenRequest = None):
                             break
                     
                     if failed_product:
-                        # Only strip if it's NOT liabilities or balance (user explicitly wants those)
-                        if failed_product in ["liabilities", "balance"]:
-                             print(f"[Plaid] CRITICAL: Product '{failed_product}' rejected despite access request. Check Plaid Dashboard.")
-                             raise HTTPException(status_code=400, detail=f"Product {failed_product} is required for Bilt but rejected by Plaid.")
-                             
-                        print(f"[Plaid] Product '{failed_product}' not enabled, removing from request.")
+                        # Add to rejected list for UI feedback
+                        if "rejected_products" not in request_params:
+                            request_params["rejected_products"] = []
+                        if failed_product not in request_params["rejected_products"]:
+                            request_params["rejected_products"].append(failed_product)
+                            
+                        print(f"[Plaid] Product '{failed_product}' rejected, removing from request.")
                         current_products = [p for p in current_products if p.value != failed_product]
                     elif len(current_products) > 1:
                         # Fallback: remove the last product that isn't transactions
