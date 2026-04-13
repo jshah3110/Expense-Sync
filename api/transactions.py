@@ -308,7 +308,20 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 
             sync_cursor = getattr(conn, "sync_cursor", None) or ""
             has_more = True
-            
+
+            # Build account map {account_id: {mask, type, subtype}} before sync loop
+            account_map = {}
+            try:
+                acc_res = client.accounts_balance_get(AccountsBalanceGetRequest(access_token=conn.access_token))
+                for acc in (acc_res.to_dict() if hasattr(acc_res, 'to_dict') else acc_res).get('accounts', []):
+                    account_map[acc.get('account_id')] = {
+                        'mask': acc.get('mask'),
+                        'type': str(acc.get('type', '')).lower(),
+                        'subtype': str(acc.get('subtype', '')).lower().replace('_', ' '),
+                    }
+            except Exception:
+                pass
+
             while has_more:
                 request = TransactionsSyncRequest(
                     access_token=conn.access_token,
@@ -338,6 +351,7 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                         
                         exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
                         if not exists:
+                            acc_info = account_map.get(mapped['account_id'], {})
                             new_tx = Transaction(
                                 plaid_transaction_id=mapped['plaid_id'],
                                 account_id=mapped['account_id'],
@@ -347,6 +361,9 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                                 category=mapped['category'],
                                 bank_name=conn.institution_name,
                                 logo_url=mapped.get('logo_url'),
+                                account_mask=acc_info.get('mask'),
+                                account_type=acc_info.get('type'),
+                                account_subtype=acc_info.get('subtype'),
                                 is_synced=False
                             )
                             db.add(new_tx)
@@ -382,6 +399,18 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                 if sync_cursor and conn.id:
                     conn.sync_cursor = sync_cursor
                     db.commit()
+
+            # Backfill account_mask/type/subtype on existing transactions that lack it
+            if account_map:
+                existing_txs = db.query(Transaction).filter(
+                    Transaction.account_id.in_(list(account_map.keys())),
+                    Transaction.account_mask.is_(None)
+                ).all()
+                for tx in existing_txs:
+                    acc_info = account_map.get(tx.account_id, {})
+                    tx.account_mask = acc_info.get('mask')
+                    tx.account_type = acc_info.get('type')
+                    tx.account_subtype = acc_info.get('subtype')
 
             conn.last_sync_error = None
             db.commit()

@@ -1517,13 +1517,22 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                           {tx.displayDate || (tx.date ? tx.date.split('T')[0] : '')}
                         </span>
-                        {tx.bank_name && (
-                          <span style={{ 
-                            background: 'hsla(0,0%,100%,0.08)', 
-                            padding: '1px 5px', borderRadius: '4px',
-                            fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.02em'
-                          }}>🏦 {tx.bank_name}</span>
-                        )}
+                        {tx.bank_name && (() => {
+                          const isCredit = tx.account_type === 'credit';
+                          const subLabel = tx.account_subtype
+                            ? tx.account_subtype.replace('credit card', 'Credit').replace('checking', 'Checking').replace('savings', 'Savings')
+                            : (isCredit ? 'Credit' : '');
+                          const mask = tx.account_mask ? ` ••${tx.account_mask}` : '';
+                          return (
+                            <span style={{
+                              background: isCredit ? 'hsla(250,89%,65%,0.1)' : 'hsla(0,0%,100%,0.08)',
+                              padding: '1px 5px', borderRadius: '4px',
+                              fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.02em'
+                            }}>
+                              {isCredit ? '💳' : '🏦'} {tx.bank_name}{subLabel ? ` ${subLabel}` : ''}{mask}
+                            </span>
+                          );
+                        })()}
                         {tx.is_ignored && (
                           <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', opacity: 0.7 }}>👻 others</span>
                         )}

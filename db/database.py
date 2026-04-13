@@ -29,6 +29,9 @@ class Transaction(Base):
     category = Column(String, nullable=True)
     bank_name = Column(String, nullable=True)
     logo_url = Column(String, nullable=True)
+    account_mask = Column(String, nullable=True)      # Last 4 digits, e.g. "4242"
+    account_type = Column(String, nullable=True)      # "credit" or "depository"
+    account_subtype = Column(String, nullable=True)   # "credit card", "checking", "savings"
     
     # App State
     is_synced = Column(Boolean, default=False)
@@ -104,6 +107,14 @@ try:
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN available_balance FLOAT"))
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN next_payment_date VARCHAR"))
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN minimum_payment FLOAT"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN account_mask VARCHAR"))
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN account_type VARCHAR"))
+        conn.execute(text("ALTER TABLE transactions ADD COLUMN account_subtype VARCHAR"))
 except Exception:
     pass
 
