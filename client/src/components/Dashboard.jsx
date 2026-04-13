@@ -17,7 +17,16 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
   const [merchantFilter, setMerchantFilter] = useState('');
-  
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [summaryTitle, setSummaryTitle] = useState('');
+  const [summaryGroupId, setSummaryGroupId] = useState('');
+  const [summaryPayerId, setSummaryPayerId] = useState('');
+  const [summarySplitMethod, setSummarySplitMethod] = useState('equally');
+  const [summaryIncludedMembers, setSummaryIncludedMembers] = useState([]);
+  const [summaryMemberValues, setSummaryMemberValues] = useState({});
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryStatus, setSummaryStatus] = useState(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
@@ -624,6 +633,155 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
     return <div style={{ textAlign: 'center', marginTop: '4rem' }}><FiRefreshCw className="spin" size={32} /></div>;
   }
 
+  // ─── SUMMARY EXPENSE HELPERS ──────────────────────────────────────────────
+
+  const generateReceiptCanvas = (selectedTxs, title) => {
+    const canvas = document.createElement('canvas');
+    const rowH = 28, padding = 24, headerH = 60, footerH = 56;
+    canvas.width = 520;
+    canvas.height = headerH + rowH * selectedTxs.length + footerH + padding * 2;
+    const ctx = canvas.getContext('2d');
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Indigo header band
+    ctx.fillStyle = '#6366f1';
+    ctx.fillRect(0, 0, canvas.width, headerH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.fillText(title, padding, 30);
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(`Generated ${new Date().toLocaleDateString()}`, padding, 50);
+
+    // Column header row
+    let y = headerH + padding + 10;
+    ctx.fillStyle = '#6b7280';
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.fillText('DATE', padding, y);
+    ctx.fillText('MERCHANT', 110, y);
+    ctx.fillText('AMOUNT', 440, y);
+    y += 6;
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(canvas.width - padding, y); ctx.stroke();
+    y += 14;
+
+    // Transaction rows
+    selectedTxs.forEach((tx, i) => {
+      if (i % 2 === 0) {
+        ctx.fillStyle = '#f9fafb';
+        ctx.fillRect(0, y - 14, canvas.width, rowH);
+      }
+      ctx.fillStyle = '#374151';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText((tx.date || '').substring(0, 10), padding, y);
+      ctx.fillText((tx.name || '').substring(0, 32), 110, y);
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillText(`$${tx.amount.toFixed(2)}`, 440, y);
+      y += rowH;
+    });
+
+    // Total row
+    const total = selectedTxs.reduce((s, t) => s + t.amount, 0);
+    y += 8;
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(canvas.width - padding, y); ctx.stroke();
+    y += 22;
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.fillStyle = '#6366f1';
+    ctx.fillText('TOTAL', padding, y);
+    ctx.fillText(`$${total.toFixed(2)}`, 440, y);
+
+    return canvas;
+  };
+
+  const handleSummaryPush = async () => {
+    if (!summaryGroupId) { setSummaryStatus('⚠ Select a group first'); return; }
+    setSummaryLoading(true);
+    setSummaryStatus(null);
+    try {
+      const selectedTxs = transactions.filter(t => selectedTxIds.includes(t.id));
+      const total = selectedTxs.reduce((s, t) => s + t.amount, 0);
+      const group = groups.find(g => g.id.toString() === summaryGroupId.toString());
+      if (!group) throw new Error('Group not found');
+
+      const payerId = summaryPayerId || currentUserId;
+      const includedIds = summaryIncludedMembers.length > 0 ? summaryIncludedMembers : (group.members?.map(m => m.id) || []);
+      const includedMembers = group.members?.filter(m => includedIds.some(id => id.toString() === m.id.toString())) || [];
+      if (includedMembers.length === 0) throw new Error('Select at least one person to split with');
+
+      // Build owed shares with penny-drift correction (same logic as handlePushToSplitwise)
+      const owedSharesMap = {};
+      let totalAssigned = 0;
+
+      if (summarySplitMethod === 'equally') {
+        const baseShare = Number((total / includedMembers.length).toFixed(2));
+        includedMembers.forEach(m => { owedSharesMap[m.id] = baseShare; totalAssigned += baseShare; });
+      } else if (summarySplitMethod === 'share') {
+        const totalShares = includedMembers.reduce((acc, m) => acc + (parseFloat(summaryMemberValues[m.id]) || 0), 0);
+        if (totalShares === 0) throw new Error('Total shares cannot be zero');
+        includedMembers.forEach(m => {
+          const base = Number(((total * (parseFloat(summaryMemberValues[m.id]) || 0)) / totalShares).toFixed(2));
+          owedSharesMap[m.id] = base; totalAssigned += base;
+        });
+      } else {
+        includedMembers.forEach(m => {
+          const base = Number(parseFloat(summaryMemberValues[m.id]) || 0);
+          owedSharesMap[m.id] = base; totalAssigned += base;
+        });
+      }
+
+      // Fix penny drift
+      const diff = Math.round((Number(total.toFixed(2)) - totalAssigned) * 100);
+      if (diff !== 0 && includedMembers.length > 0) {
+        owedSharesMap[includedMembers[0].id] = Number((owedSharesMap[includedMembers[0].id] + diff / 100).toFixed(2));
+      }
+
+      if (summarySplitMethod === 'custom') {
+        const finalOwed = Object.values(owedSharesMap).reduce((a, v) => a + v, 0);
+        if (Math.abs(finalOwed - total) > 0.05) {
+          if (!confirm(`Custom split total ($${finalOwed.toFixed(2)}) doesn't match $${total.toFixed(2)}. Push anyway?`)) { setSummaryLoading(false); return; }
+        }
+      }
+
+      const users = group.members.map(m => ({
+        user_id: m.id,
+        paid_share: m.id.toString() === payerId.toString() ? total.toFixed(2) : '0.00',
+        owed_share: includedIds.some(id => id.toString() === m.id.toString()) ? (owedSharesMap[m.id] || 0).toFixed(2) : '0.00',
+      }));
+
+      // Generate receipt canvas
+      const canvas = generateReceiptCanvas(selectedTxs, summaryTitle);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+      const formData = new FormData();
+      formData.append('tx_ids', JSON.stringify(selectedTxIds));
+      formData.append('description', summaryTitle);
+      formData.append('group_id', summaryGroupId);
+      formData.append('users_json', JSON.stringify(users));
+      formData.append('receipt', blob, 'receipt.png');
+
+      const res = await axios.post(`${API_BASE}/api/splitwise/summary-expense`, formData);
+
+      setTransactions(prev => prev.map(t =>
+        selectedTxIds.includes(t.id)
+          ? { ...t, is_synced: true, is_ignored: false, splitwise_expense_id: res.data.expense_id }
+          : t
+      ));
+      setSelectedTxIds([]);
+      setSummaryStatus(`✓ Pushed $${res.data.total.toFixed(2)} (${res.data.synced_count} transactions)`);
+      setTimeout(() => setSummaryModalOpen(false), 1500);
+    } catch (err) {
+      setSummaryStatus(`✗ ${err.response?.data?.detail || err.message || 'Push failed'}`);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   // React element securely rendering the Sync Bank actions securely.
   const syncButtonContent = (
     <div style={{ display: 'flex', alignItems: 'stretch' }}>
@@ -1210,6 +1368,30 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
                     >
                       ✓ Mark Pushed
                     </button>
+                    {selectedTxIds.length >= 2 && (
+                      <button
+                        onClick={() => {
+                          const selectedTxs = transactions.filter(t => selectedTxIds.includes(t.id));
+                          const dates = selectedTxs.map(t => t.displayDate || t.date).filter(Boolean).sort();
+                          setSummaryTitle(dates.length >= 2 ? `Shared Expenses ${dates[0]} – ${dates[dates.length - 1]}` : `Shared Expenses ${dates[0] || ''}`);
+                          setSummaryGroupId('');
+                          setSummaryPayerId(currentUserId || '');
+                          setSummarySplitMethod('equally');
+                          setSummaryIncludedMembers([]);
+                          setSummaryMemberValues({});
+                          setSummaryStatus(null);
+                          setSummaryModalOpen(true);
+                        }}
+                        style={{
+                          background: 'hsla(250, 89%, 65%, 0.12)', color: 'hsl(250, 89%, 65%)',
+                          border: '1px solid hsl(250, 89%, 65%)', padding: '0.35rem 0.75rem',
+                          borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '0.3rem',
+                        }}
+                      >
+                        📋 Summarize ({selectedTxIds.length})
+                      </button>
+                    )}
                     <button
                       onClick={handleBulkIgnore}
                       style={{
@@ -1880,6 +2062,237 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── SUMMARY EXPENSE MODAL ─────────────────────────────────── */}
+      {summaryModalOpen && (() => {
+        const selectedTxs = transactions.filter(t => selectedTxIds.includes(t.id));
+        const total = selectedTxs.reduce((s, t) => s + t.amount, 0);
+        const summaryGroup = groups.find(g => g.id.toString() === summaryGroupId.toString());
+        const effectivePayerId = summaryPayerId || currentUserId;
+        const effectiveIncluded = summaryIncludedMembers.length > 0
+          ? summaryIncludedMembers
+          : (summaryGroup?.members?.map(m => m.id) || []);
+        const isReady = summaryGroupId && summaryTitle.trim() && !summaryLoading;
+        const LABEL = { fontSize: '0.65rem', fontWeight: 600, opacity: 0.5, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' };
+        const SELECT_STYLE = { minHeight: 'unset', padding: '0.5rem 1.5rem 0.5rem 0.7rem', fontSize: '0.82rem', width: '100%', boxSizing: 'border-box' };
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '520px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.1rem' }}>📋 Summary Expense</h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{selectedTxs.length} transactions · ${total.toFixed(2)} total</p>
+                </div>
+                <button onClick={() => setSummaryModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                  <FiX size={18} />
+                </button>
+              </div>
+
+              {/* Transaction list (collapsible feel — compact) */}
+              <div style={{ marginBottom: '1.25rem', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                {selectedTxs.map((tx, i) => (
+                  <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: i % 2 === 0 ? 'var(--bg)' : 'transparent' }}>
+                    <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', minWidth: '76px' }}>{(tx.displayDate || tx.date || '').substring(0, 10)}</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{tx.name}</span>
+                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>${tx.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.55rem 0.75rem', fontWeight: 700, borderTop: '2px solid var(--primary)', color: 'var(--primary)', fontSize: '0.85rem' }}>
+                  <span>Total ({selectedTxs.length} items)</span>
+                  <span>${total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* ── Title ── */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={LABEL}>Expense Title</label>
+                <input
+                  className="glass-input"
+                  value={summaryTitle}
+                  onChange={e => setSummaryTitle(e.target.value)}
+                  style={{ minHeight: 'unset', padding: '0.5rem 0.7rem', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* ── Group + Split method (row) ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div>
+                  <label style={LABEL}>Group</label>
+                  <select
+                    className="glass-select"
+                    style={SELECT_STYLE}
+                    value={summaryGroupId}
+                    onChange={e => {
+                      setSummaryGroupId(e.target.value);
+                      setSummaryIncludedMembers([]);
+                      setSummaryMemberValues({});
+                    }}
+                  >
+                    <option value="" disabled>Pick group…</option>
+                    <optgroup label="Active">
+                      {groups.filter(g => g.isActive).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </optgroup>
+                    {groups.filter(g => !g.isActive).length > 0 && (
+                      <optgroup label="Others">
+                        {groups.filter(g => !g.isActive).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label style={LABEL}>Split</label>
+                  <select
+                    className="glass-select"
+                    style={SELECT_STYLE}
+                    value={summarySplitMethod}
+                    onChange={e => { setSummarySplitMethod(e.target.value); setSummaryMemberValues({}); }}
+                  >
+                    <option value="equally">Equally</option>
+                    <option value="share">By Share</option>
+                    <option value="custom">Custom $</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ── Who paid ── */}
+              <div style={{ marginBottom: '0.75rem' }}>
+                <label style={LABEL}>Who paid?</label>
+                <select
+                  className="glass-select"
+                  style={SELECT_STYLE}
+                  value={effectivePayerId}
+                  onChange={e => setSummaryPayerId(e.target.value)}
+                >
+                  {summaryGroup ? summaryGroup.members?.map(m => (
+                    <option key={m.id} value={m.id}>{m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}</option>
+                  )) : <option disabled>Select a group first</option>}
+                </select>
+              </div>
+
+              {/* ── Split with (member pills) ── */}
+              {summaryGroup && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <label style={LABEL}>Split with</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {summaryGroup.members?.map(m => {
+                      const included = effectiveIncluded.some(id => id.toString() === m.id.toString());
+                      return (
+                        <label key={m.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer',
+                          padding: '0.35rem 0.8rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 500,
+                          background: included ? 'hsla(250,89%,65%,0.15)' : 'hsla(0,0%,100%,0.05)',
+                          border: included ? '1px solid var(--primary-glow)' : '1px solid var(--border-light)',
+                          color: included ? 'var(--text-primary)' : 'var(--text-muted)',
+                          transition: 'all 0.15s',
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={included}
+                            onChange={e => {
+                              const current = summaryIncludedMembers.length > 0 ? summaryIncludedMembers : (summaryGroup.members?.map(x => x.id) || []);
+                              const next = e.target.checked
+                                ? [...current, m.id]
+                                : current.filter(id => id.toString() !== m.id.toString());
+                              setSummaryIncludedMembers(next);
+                            }}
+                            style={{ display: 'none' }}
+                          />
+                          {m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Per-member values (share / custom) ── */}
+              {summaryGroup && (summarySplitMethod === 'share' || summarySplitMethod === 'custom') && (
+                <div style={{ marginBottom: '0.75rem', padding: '0.85rem', background: 'hsla(0,0%,0%,0.12)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, opacity: 0.5, marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {summarySplitMethod === 'share' ? 'Shares' : 'Amounts ($)'}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.6rem' }}>
+                    {summaryGroup.members?.filter(m => effectiveIncluded.some(id => id.toString() === m.id.toString())).map(m => (
+                      <div key={m.id}>
+                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>
+                          {m.id.toString() === currentUserId?.toString() ? 'You' : m.first_name}
+                        </div>
+                        <input
+                          type="number"
+                          className="glass-input"
+                          placeholder={summarySplitMethod === 'share' ? '1' : '0.00'}
+                          value={summaryMemberValues[m.id] || ''}
+                          onChange={e => setSummaryMemberValues(prev => ({ ...prev, [m.id]: e.target.value }))}
+                          style={{ padding: '0.4rem 0.5rem', minHeight: 'unset', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Push button ── */}
+              <button
+                onClick={handleSummaryPush}
+                disabled={!isReady}
+                className={isReady ? 'btn-splitwise' : ''}
+                style={{
+                  width: '100%', padding: '0.7rem', border: 'none',
+                  borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem',
+                  background: isReady ? undefined : 'var(--border-light)',
+                  color: isReady ? '#fff' : 'var(--text-muted)',
+                  cursor: isReady ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {summaryLoading ? '⟳ Pushing…' : `→ Push $${total.toFixed(2)} to Splitwise`}
+              </button>
+
+              {summaryStatus && (
+                <p style={{
+                  marginTop: '0.75rem', fontSize: '0.82rem', textAlign: 'center',
+                  color: summaryStatus.includes('✓') ? '#10b981' : summaryStatus.includes('⚠') ? '#f59e0b' : '#ef4444',
+                }}>
+                  {summaryStatus}
+                </p>
+              )}
+
+              {/* Download / Share Receipt */}
+              <button
+                onClick={async () => {
+                  const canvas = generateReceiptCanvas(selectedTxs, summaryTitle);
+                  const filename = `receipt-${summaryTitle.replace(/\s+/g, '-').toLowerCase()}.png`;
+                  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                  const file = new File([blob], filename, { type: 'image/png' });
+
+                  // iOS: use Web Share API → triggers native share sheet → "Save Image" → Photos
+                  if (navigator.canShare?.({ files: [file] })) {
+                    try { await navigator.share({ files: [file], title: summaryTitle }); return; } catch (_) {}
+                  }
+
+                  // Desktop fallback
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = filename; a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                style={{
+                  marginTop: '0.75rem', width: '100%', padding: '0.55rem',
+                  background: 'transparent', border: '1px solid var(--border-light)',
+                  borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.82rem',
+                  fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: '0.4rem',
+                }}
+              >
+                <FiDownload size={13} /> {navigator.canShare ? 'Share Receipt (Save to Photos)' : 'Download Receipt PNG'}
+              </button>
             </div>
           </div>
         );

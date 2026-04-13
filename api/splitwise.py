@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import os
@@ -331,6 +331,78 @@ def add_expense(expense_data: dict, db: Session = Depends(get_db)):
     
     if result.get("errors") and (result["errors"].get("base") or any(result["errors"].values())):
         raise HTTPException(status_code=400, detail=f"Splitwise rejected expense: {result['errors']}")
-        
+
     return result
+
+
+@router.post("/summary-expense")
+async def create_summary_expense(
+    tx_ids: str = Form(...),          # JSON-encoded list of int IDs: "[1,2,3]"
+    description: str = Form(...),
+    group_id: str = Form(...),
+    users_json: str = Form(None),     # JSON-encoded users array [{user_id, paid_share, owed_share}]
+    receipt: UploadFile = FastAPIFile(None),  # Optional receipt PNG
+    db: Session = Depends(get_db)
+):
+    """Push multiple transactions as one summary expense to Splitwise."""
+    import json
+
+    ids = json.loads(tx_ids)
+    txs = db.query(TransactionModel).filter(TransactionModel.id.in_(ids)).all()
+    if not txs:
+        raise HTTPException(status_code=404, detail="No transactions found")
+
+    total = round(sum(t.amount for t in txs), 2)
+    token = get_splitwise_token(db)
+
+    payload = {
+        "cost": str(total),
+        "description": description,
+        "group_id": group_id,
+        "currency_code": "USD",
+    }
+
+    # Apply user split data if provided, else fall back to split_equally
+    if users_json:
+        users = json.loads(users_json)
+        for i, user in enumerate(users):
+            payload[f"users__{i}__user_id"] = user.get("user_id")
+            payload[f"users__{i}__paid_share"] = str(user.get("paid_share", "0.00"))
+            payload[f"users__{i}__owed_share"] = str(user.get("owed_share", "0.00"))
+    else:
+        payload["split_equally"] = "true"
+
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+    if token:
+        # Try multipart if receipt provided, else standard form-encoded
+        if receipt:
+            receipt_bytes = await receipt.read()
+            files = {"receipt": (receipt.filename, receipt_bytes, "image/png")}
+            response = requests.post(f"{API_BASE}/create_expense", headers=headers, data=payload, files=files)
+        else:
+            response = requests.post(f"{API_BASE}/create_expense", headers=headers, data=payload)
+
+        result = response.json()
+        print(f"DEBUG summary-expense: status={response.status_code}, body={result}")
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Splitwise API error: {result}")
+        if result.get("errors") and any(result["errors"].values()):
+            raise HTTPException(status_code=400, detail=f"Splitwise rejected expense: {result['errors']}")
+
+        expense_id = str(result.get("expenses", [{}])[0].get("id", ""))
+    else:
+        # Mock mode (no Splitwise token)
+        expense_id = "mock_summary_expense"
+
+    # Mark all included transactions as synced
+    for tx in txs:
+        tx.is_synced = True
+        tx.is_ignored = False
+        tx.splitwise_expense_id = expense_id
+        tx.splitwise_group_id = group_id
+    db.commit()
+
+    return {"status": "success", "expense_id": expense_id, "total": total, "synced_count": len(txs)}
 
