@@ -15,6 +15,8 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
   const [linkTokenMetadata, setLinkTokenMetadata] = useState(null);
   const [updateModeConnId, setUpdateModeConnId] = useState(null);
   const [oauthRedirectMissing, setOauthRedirectMissing] = useState(false);
+  const [csvImportStatus, setCSVImportStatus] = useState(null);
+  const [csvImportLoading, setCSVImportLoading] = useState(false);
   const location = useLocation();
 
   const fetchStatus = async () => {
@@ -95,6 +97,30 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
       setPullResult('Failed to pull from Splitwise.');
     } finally {
       setPullLoading(false);
+    }
+  };
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCSVImportLoading(true);
+    setCSVImportStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post(`${API_BASE}/api/transactions/import-csv`, formData);
+      setCSVImportStatus(`✓ Imported ${res.data.added} transaction${res.data.added === 1 ? '' : 's'}`);
+      if (res.data.errors?.length > 0) {
+        setCSVImportStatus(prev => prev + ` (${res.data.errors.length} errors)`);
+      }
+      await fetchStatus();
+      e.target.value = ''; // Clear file input
+    } catch (err) {
+      setCSVImportStatus(`✗ Import failed: ${err.response?.data?.detail || 'Unknown error'}`);
+    } finally {
+      setCSVImportLoading(false);
     }
   };
 
@@ -387,6 +413,33 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
               })}
             </div>
           )}
+
+          {/* Bilt 2.0 CSV Import */}
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>📊 Bilt 2.0 Obsidian (CSV Import)</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+              <strong>Desktop only:</strong> Open Bilt on desktop → Transactions → View All → ⋯ → Download CSV → Upload here.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCSVImport}
+                style={{ fontSize: '0.85rem', flex: 1 }}
+                disabled={csvImportLoading}
+              />
+              {csvImportLoading && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>⟳ Importing...</span>}
+            </div>
+            {csvImportStatus && (
+              <p style={{
+                fontSize: '0.8rem',
+                marginTop: '0.5rem',
+                color: csvImportStatus.includes('✓') ? '#10b981' : '#ef4444'
+              }}>
+                {csvImportStatus}
+              </p>
+            )}
+          </div>
 
           {/* Plaid Health Diagnostics */}
           {linkTokenMetadata && (

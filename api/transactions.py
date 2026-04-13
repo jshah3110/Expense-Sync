@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 import os
 import datetime
@@ -468,6 +468,66 @@ def add_manual_mock_transaction(request: MockTransactionRequest, db: Session = D
     db.commit()
     db.refresh(new_tx)
     return {"status": "success", "id": new_tx.id, "transaction_id": new_tx.plaid_transaction_id}
+
+@router.post("/import-csv")
+async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Import transactions from Bilt CSV export (desktop export only)"""
+    import csv
+    from io import StringIO
+    import hashlib
+
+    try:
+        contents = await file.read()
+        csv_reader = csv.DictReader(StringIO(contents.decode('utf-8')))
+
+        added = 0
+        errors = []
+
+        for row in csv_reader:
+            try:
+                # Map actual Bilt CSV columns
+                date = row.get('Transaction Date')
+                description = row.get('Description')
+                raw_merchant = row.get('Raw Merchant Name', '')
+                name = description or raw_merchant or 'Unknown'
+                amount_str = row.get('Amount', '0')
+
+                # Parse amount (handle potential formatting)
+                amount = float(amount_str.replace('$', '').replace(',', ''))
+
+                if amount <= 0: continue  # Skip refunds/payments/zero
+                if not date: continue  # Skip rows without date
+
+                # Generate unique ID from CSV row (dedup key)
+                csv_id = hashlib.md5(f"{date}{name}{amount}".encode()).hexdigest()
+                plaid_tx_id = f"csv_bilt_{csv_id}"
+
+                exists = db.query(Transaction).filter(
+                    Transaction.plaid_transaction_id == plaid_tx_id
+                ).first()
+                if exists: continue  # Skip duplicates
+
+                new_tx = Transaction(
+                    plaid_transaction_id=plaid_tx_id,
+                    account_id="bilt_2.0_obsidian",
+                    amount=amount,
+                    date=date,
+                    name=name,
+                    category="General",  # Bilt CSV has no category
+                    bank_name="Bilt 2.0 Obsidian",
+                    is_synced=False
+                )
+                db.add(new_tx)
+                added += 1
+
+            except Exception as e:
+                errors.append(f"Row error: {str(e)}")
+
+        db.commit()
+        return {"status": "success", "added": added, "errors": errors}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"CSV import failed: {str(e)}")
 
 @router.delete("/{tx_id}")
 def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
