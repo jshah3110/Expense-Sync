@@ -15,6 +15,8 @@ from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.item_remove_request import ItemRemoveRequest
+from plaid.model.liabilities_get_request import LiabilitiesGetRequest
+from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 
 from db.database import get_db, UserModel, Transaction, BankConnection
 
@@ -117,12 +119,12 @@ def create_link_token(req: LinkTokenRequest = None):
                 error_code = body.get('error_code', '')
                 error_msg = body.get('error_message', '').lower()
 
-                # If the redirect_uri is the problem, try again without it (OAuth will fail for Bilt)
+                # FOR BILT: Redirect URI is MANDATORY for OAuth flow.
+                # We no longer pop it automatically since user has full product access.
                 if error_code == 'INVALID_FIELD' and 'redirect' in error_msg and request_params.get('redirect_uri'):
-                    print(f"[Plaid] redirect_uri rejected, retrying without it.")
-                    request_params.pop('redirect_uri')
-                    redirect_status = "rejected"
-                    continue
+                    print(f"[Plaid] redirect_uri rejected, check Plaid Dashboard registration for {req.redirect_uri}")
+                    # Allow the error to propagate so the user knows they need to fix their dashboard config
+                    raise HTTPException(status_code=400, detail="Redirect URI is mandatory but rejected by Plaid. Check your dashboard config.")
 
                 # If a product is the problem, remove it and try again
                 if error_code == 'INVALID_PRODUCT':
@@ -133,6 +135,11 @@ def create_link_token(req: LinkTokenRequest = None):
                             break
                     
                     if failed_product:
+                        # Only strip if it's NOT liabilities or balance (user explicitly wants those)
+                        if failed_product in ["liabilities", "balance"]:
+                             print(f"[Plaid] CRITICAL: Product '{failed_product}' rejected despite access request. Check Plaid Dashboard.")
+                             raise HTTPException(status_code=400, detail=f"Product {failed_product} is required for Bilt but rejected by Plaid.")
+                             
                         print(f"[Plaid] Product '{failed_product}' not enabled, removing from request.")
                         current_products = [p for p in current_products if p.value != failed_product]
                     elif len(current_products) > 1:
@@ -372,6 +379,51 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                     db.commit()
 
             conn.last_sync_error = None
+            db.commit()
+
+            # --- NEW: Fetch Liabilities and Balance (Manual Only) ---
+            try:
+                # 1. Fetch Balances
+                balance_req = AccountsBalanceGetRequest(access_token=conn.access_token)
+                balance_res = client.accounts_balance_get(balance_req)
+                
+                # 2. Fetch Liabilities
+                # Note: This may fail for some institutions, so we handle it gracefully
+                lib_req = LiabilitiesGetRequest(access_token=conn.access_token)
+                lib_res = client.liabilities_get(lib_req)
+                
+                # Update conn metadata based on the primary account (or first credit card found)
+                primary_acc = None
+                accounts = balance_res.get('accounts', [])
+                
+                # Prioritize credit card for Bilt users
+                for acc in accounts:
+                    if acc.get('type') == 'credit':
+                        primary_acc = acc
+                        break
+                
+                if not primary_acc and accounts:
+                    primary_acc = accounts[0]
+                
+                if primary_acc:
+                    conn.current_balance = primary_acc.get('balances', {}).get('current')
+                    conn.available_balance = primary_acc.get('balances', {}).get('available')
+                    
+                    # Pull liability info if available
+                    liabilities = lib_res.get('liabilities', {})
+                    credit_libs = liabilities.get('credit', [])
+                    for cl in credit_libs:
+                        if cl.get('account_id') == primary_acc.get('account_id'):
+                            conn.next_payment_date = str(cl.get('next_payment_due_date')) if cl.get('next_payment_due_date') else None
+                            conn.minimum_payment = cl.get('minimum_payment_amount')
+                            break
+                    
+                    db.commit()
+                    print(f"[SYNC] {conn.institution_name} balance updated: {conn.current_balance}")
+            except Exception as e_lib:
+                # Log but don't fail the whole sync if liabilities/balance fails
+                # (Some institutions might not support discovery products yet)
+                print(f"[SYNC] Skipping liabilities for {conn.institution_name}: {str(e_lib)}")
 
         except plaid.ApiException as plaid_err:
             try:
@@ -603,6 +655,12 @@ def get_plaid_status(db: Session = Depends(get_db)):
             conn_info["available_products"] = [p.value if hasattr(p, 'value') else str(p) for p in item.get('available_products', [])]
             conn_info["billed_products"] = [p.value if hasattr(p, 'value') else str(p) for p in item.get('billed_products', [])]
             conn_info["needs_reconnect"] = conn_info["plaid_item_error"] in ["ITEM_LOGIN_REQUIRED", "INVALID_ACCESS_TOKEN"]
+            
+            # Add balance and liability metadata
+            conn_info["current_balance"] = c.current_balance
+            conn_info["available_balance"] = c.available_balance
+            conn_info["next_payment_date"] = c.next_payment_date
+            conn_info["minimum_payment"] = c.minimum_payment
         except Exception as e:
             conn_info["plaid_item_error"] = f"status_check_failed: {str(e)}"
             conn_info["needs_reconnect"] = True

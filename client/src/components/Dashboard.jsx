@@ -63,6 +63,7 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [showMockForm, setShowMockForm] = useState(false);
   const [activeTab, setActiveTab] = useState('backlog'); // 'backlog' | 'pushed'
+  const [plaidConnections, setPlaidConnections] = useState([]);
 
   // ── Reconcile state ────────────────────────────────────────────────────────
   const [showReconcile, setShowReconcile] = useState(false);
@@ -92,6 +93,15 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
       }
     } catch (error) {
       console.error("Error checking status", error);
+    }
+  };
+
+  const fetchPlaidStatus = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/transactions/status`);
+      setPlaidConnections(res.data || []);
+    } catch (error) {
+      console.error("Error fetching Plaid status", error);
     }
   };
 
@@ -160,6 +170,7 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
     } catch (e) {}
 
     fetchStatus();
+    fetchPlaidStatus();
     fetchTransactions();
   }, []);
 
@@ -194,6 +205,7 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
       const res = await axios.get(`${API_BASE}/api/transactions/sync?days=${syncDays}`);
       setSyncErrors(res.data.errors || []);
       await fetchTransactions();
+      await fetchPlaidStatus();
     } catch (error) {
        console.error("Error syncing with Plaid", error);
        alert("Failed to sync. Make sure Plaid is connected in settings.");
@@ -706,6 +718,47 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
             )}
           </div>
         </div>
+
+        {/* --- NEW: Financial Snapshot Row --- */}
+        {plaidConnections.length > 0 && (
+          <div className="financial-snapshot-row animate-fade-in" style={{ 
+            display: 'flex', gap: '0.75rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.5rem',
+            scrollbarWidth: 'none', msOverflowStyle: 'none'
+          }}>
+            {plaidConnections.map(conn => {
+              const isBilt = conn.institution_name?.toLowerCase().includes('bilt') || conn.institution_name?.toLowerCase().includes('wells fargo');
+              if (conn.current_balance === null && !conn.needs_reconnect) return null;
+
+              return (
+                <div key={conn.id} className="glass-card" style={{ 
+                  flexShrink: 0, padding: '0.8rem 1rem', minWidth: '220px', 
+                  border: isBilt ? '1px solid hsla(220,60%,60%,0.3)' : '1px solid var(--border-light)',
+                  background: isBilt ? 'hsla(220,60%,50%,0.05)' : 'var(--glass-bg)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {conn.institution_name}
+                    </div>
+                    {conn.needs_reconnect && (
+                      <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 700, background: 'hsla(0,72%,51%,0.1)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>RECONNECT</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+                      ${conn.current_balance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.4 }}>Balance</span>
+                  </div>
+                  {conn.next_payment_date && (
+                    <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: isBilt ? 'hsla(220,60%,65%,1)' : 'var(--text-secondary)' }}>
+                      Due {new Date(conn.next_payment_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}: <strong>${conn.minimum_payment?.toFixed(2)}</strong>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Row 2: Sync Now full-width (mobile, when bank connected) */}
         {isMobile && isConnected && (

@@ -51,6 +51,12 @@ class BankConnection(Base):
     institution_name = Column(String)
     sync_cursor = Column(String, nullable=True)
     last_sync_error = Column(String, nullable=True)
+    
+    # Financial Snapshot (New)
+    current_balance = Column(Float, nullable=True)
+    available_balance = Column(Float, nullable=True)
+    next_payment_date = Column(String, nullable=True)
+    minimum_payment = Column(Float, nullable=True)
 
 class Budget(Base):
     __tablename__ = "budgets"
@@ -89,6 +95,15 @@ except Exception:
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE bank_connections ADD COLUMN last_sync_error VARCHAR"))
+except Exception:
+    pass
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN current_balance FLOAT"))
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN available_balance FLOAT"))
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN next_payment_date VARCHAR"))
+        conn.execute(text("ALTER TABLE bank_connections ADD COLUMN minimum_payment FLOAT"))
 except Exception:
     pass
 
