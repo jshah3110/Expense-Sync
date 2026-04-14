@@ -606,7 +606,10 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
     }
 
     if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
-    if (bankFilter !== 'all' && (t.bank_name || 'Unknown') !== bankFilter) return false;
+    if (bankFilter !== 'all') {
+      const txKey = t.account_mask ? `${t.bank_name}|${t.account_mask}` : (t.bank_name || 'Unknown');
+      if (txKey !== bankFilter) return false;
+    }
     if (merchantFilter && !(t.name || t.category || "General").toLowerCase().includes(merchantFilter.toLowerCase())) return false;
     
     return true;
@@ -1029,8 +1032,22 @@ const Dashboard = ({ theme = 'dark', transactions, setTransactions, loading, set
           <select className="glass-select" value={bankFilter} onChange={(e) => setBankFilter(e.target.value)}
             style={{ padding: '0.45rem 1.5rem 0.45rem 0.7rem', fontSize: '0.78rem', minHeight: 'unset', width: '100%' }}>
             <option value="all">All banks</option>
-            {Array.from(new Set(transactions.map(t => t.bank_name || 'Unknown').filter(b => b !== 'Unknown'))).map(bank => (
-              <option key={bank} value={bank}>{bank}</option>
+            {Array.from(
+              transactions.reduce((map, t) => {
+                if (!t.bank_name) return map;
+                const key = t.account_mask ? `${t.bank_name}|${t.account_mask}` : t.bank_name;
+                if (!map.has(key)) {
+                  const isCredit = t.account_type === 'credit';
+                  const sub = t.account_subtype
+                    ? t.account_subtype.replace('credit card', 'Credit').replace('checking', 'Checking').replace('savings', 'Savings')
+                    : (isCredit ? 'Credit' : '');
+                  const label = `${t.bank_name}${sub ? ' ' + sub : ''}${t.account_mask ? ' ••' + t.account_mask : ''}`;
+                  map.set(key, label);
+                }
+                return map;
+              }, new Map())
+            ).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
             ))}
           </select>
           <select className="glass-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
