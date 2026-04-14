@@ -360,23 +360,43 @@ def sync_transactions(days: str = '30', db: Session = Depends(get_db)):
                         exists = db.query(Transaction).filter(Transaction.plaid_transaction_id == mapped['plaid_id']).first()
                         if not exists:
                             acc_info = account_map.get(mapped['account_id'], {})
-                            new_tx = Transaction(
-                                plaid_transaction_id=mapped['plaid_id'],
-                                account_id=mapped['account_id'],
-                                amount=mapped['amount'],
-                                date=mapped['date'],
-                                name=mapped['name'],
-                                category=mapped['category'],
-                                bank_name=conn.institution_name,
-                                logo_url=mapped.get('logo_url'),
-                                account_mask=acc_info.get('mask'),
-                                account_type=acc_info.get('type'),
-                                account_subtype=acc_info.get('subtype'),
-                                is_synced=False
-                            )
-                            db.add(new_tx)
-                            all_transactions_added.append(mapped['name'])
-                            total_added += 1
+
+                            # Reconnected bank: same tx gets a new plaid_transaction_id.
+                            # Match existing record by (date, name, amount, bank) to avoid duplicates.
+                            fuzzy_match = db.query(Transaction).filter(
+                                Transaction.date == mapped['date'],
+                                Transaction.name == mapped['name'],
+                                Transaction.amount == mapped['amount'],
+                                Transaction.bank_name == conn.institution_name,
+                                Transaction.account_mask.is_(None)  # only migrate unlabeled records
+                            ).first()
+
+                            if fuzzy_match:
+                                # Migrate: update IDs and attach account labels to the existing record
+                                fuzzy_match.plaid_transaction_id = mapped['plaid_id']
+                                fuzzy_match.account_id = mapped['account_id']
+                                fuzzy_match.account_mask = acc_info.get('mask')
+                                fuzzy_match.account_type = acc_info.get('type')
+                                fuzzy_match.account_subtype = acc_info.get('subtype')
+                                fuzzy_match.logo_url = mapped.get('logo_url') or fuzzy_match.logo_url
+                            else:
+                                new_tx = Transaction(
+                                    plaid_transaction_id=mapped['plaid_id'],
+                                    account_id=mapped['account_id'],
+                                    amount=mapped['amount'],
+                                    date=mapped['date'],
+                                    name=mapped['name'],
+                                    category=mapped['category'],
+                                    bank_name=conn.institution_name,
+                                    logo_url=mapped.get('logo_url'),
+                                    account_mask=acc_info.get('mask'),
+                                    account_type=acc_info.get('type'),
+                                    account_subtype=acc_info.get('subtype'),
+                                    is_synced=False
+                                )
+                                db.add(new_tx)
+                                all_transactions_added.append(mapped['name'])
+                                total_added += 1
                     except Exception as loop_e:
                         errors.append(f"Parsing skip: {str(loop_e)}")
 
@@ -922,6 +942,37 @@ def get_analytics(month: str = None, db: Session = Depends(get_db)):
         "by_month":    by_month,
         "pacing":      pacing_data,
     }
+
+@router.post("/dedup")
+def dedup_transactions(db: Session = Depends(get_db)):
+    """Remove duplicate transactions created when a bank was reconnected.
+    Keeps the labeled record (has account_mask), deletes the unlabeled duplicate."""
+    from sqlalchemy import func
+
+    removed = 0
+    # Find all (date, name, amount, bank_name) groups that have > 1 record
+    dupes = (
+        db.query(Transaction.date, Transaction.name, Transaction.amount, Transaction.bank_name)
+        .group_by(Transaction.date, Transaction.name, Transaction.amount, Transaction.bank_name)
+        .having(func.count(Transaction.id) > 1)
+        .all()
+    )
+
+    for date, name, amount, bank_name in dupes:
+        group = db.query(Transaction).filter(
+            Transaction.date == date,
+            Transaction.name == name,
+            Transaction.amount == amount,
+            Transaction.bank_name == bank_name,
+        ).order_by(Transaction.account_mask.desc().nullslast()).all()  # labeled first
+
+        # Keep the first (labeled), delete the rest
+        for dup in group[1:]:
+            db.delete(dup)
+            removed += 1
+
+    db.commit()
+    return {"status": "success", "removed": removed}
 
 @router.get("/")
 def get_recorded_transactions(db: Session = Depends(get_db)):
