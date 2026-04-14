@@ -167,7 +167,8 @@ const Settings = ({ theme = 'dark', onToggleTheme }) => {
       }
     } catch (e) {
       console.error("Failed to set access token", e);
-      alert("Failed to connect bank.");
+      const detail = e?.response?.data?.detail || e?.message || 'Unknown error';
+      alert(`Failed to connect bank: ${detail}`);
     }
   };
 

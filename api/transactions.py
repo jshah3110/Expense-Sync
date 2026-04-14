@@ -193,7 +193,15 @@ def set_access_token(request: PublicTokenRequest, db: Session = Depends(get_db))
         
         return {"status": "success"}
     except plaid.ApiException as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        try:
+            import json as _json
+            body = _json.loads(e.body)
+            detail = body.get('error_message') or body.get('error_code') or str(e)
+        except Exception:
+            detail = str(e)
+        raise HTTPException(status_code=400, detail=detail)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/connections/{connection_id}")
 def delete_connection(connection_id: int, db: Session = Depends(get_db)):
